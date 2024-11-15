@@ -48,40 +48,48 @@ class WhatIfAnalysis:
         except psycopg2.OperationalError as e:
             raise ConnectionError(f"Database connection error: {e}")
 
-    def retrieve_qep(self, query: str) -> Dict:
+    def retrieve_qep(self, query: str, modifications: dict = None) -> dict:
         """
         Retrieves the Query Execution Plan (QEP) for the given SQL query.
-
-        :param query: The SQL query.
-        :return: The QEP as a dictionary.
+        Optionally applies modifications (e.g., planner settings).
         """
         try:
             with self.connect_to_db() as conn:
                 with conn.cursor() as cursor:
+                    # Apply modifications if provided
+                    if modifications:
+                        planner_settings = self.apply_planner_settings(modifications)
+                        cursor.execute(planner_settings)
+
+                    # Retrieve QEP
                     cursor.execute(f"EXPLAIN (FORMAT JSON) {query}")
-                    return cursor.fetchone()[0][0]
+                    qep = cursor.fetchone()[0][0]
+                    
+                    # Debug: Print the retrieved QEP for inspection
+                    print("Retrieved QEP:", qep)  # Debug statement
+
+                    return qep
         except psycopg2.Error as e:
             raise RuntimeError(f"Error retrieving QEP: {e}")
 
+
+
+
     def modify_qep(self, original_qep: Dict, modifications: Dict) -> Dict:
         """
-        Modifies the QEP based on user-specified changes.
-
-        :param original_qep: Original QEP as a dictionary.
-        :param modifications: Modifications to be applied (e.g., operator changes).
-        :return: The modified QEP structure.
+        Modifies the QEP based on user-specified changes (scan type, node type, etc.).
         """
         modified_qep = original_qep.copy()
 
         def apply_changes(node, changes, target_node_type=None):
             """
-            Recursively apply changes to nodes in the QEP.
-
-            :param node: Current node in the QEP.
-            :param changes: Modifications to apply.
-            :param target_node_type: Optional; target specific node types.
+            Apply changes to nodes in the QEP recursively with stricter matching.
             """
             if target_node_type and node.get("Node Type") != target_node_type:
+                return
+            
+            # Match additional attributes if specified
+            if "Relation Name" in changes and node.get("Relation Name") != changes["Relation Name"]:
                 return
 
             for key, value in changes.items():
@@ -89,89 +97,143 @@ class WhatIfAnalysis:
                     node[key] = value
                 else:
                     print(f"Warning: Modification '{key}' not applicable to node {node.get('Node Type')}.")
-            
+
             # Recursively apply to child nodes
             if "Plans" in node:
                 for child in node["Plans"]:
                     apply_changes(child, changes, target_node_type)
 
-        # Apply changes to the root node and recursively to child nodes
-        apply_changes(modified_qep["Plan"], modifications, modifications.get("Target Node Type"))
+        # Apply scan type modifications
+        if "Scan Type" in modifications:
+            scan_type = modifications["Scan Type"]
+            if scan_type == "Index Scan":
+                print("Forcing Index Scan...")
+                apply_changes(modified_qep["Plan"], {"Node Type": "Index Scan"})
+            elif scan_type == "Seq Scan":
+                print("Forcing Sequential Scan...")
+                apply_changes(modified_qep["Plan"], {"Node Type": "Seq Scan"})
+
+        # Apply other modifications like join type changes
+        if "Node Type" in modifications:
+            print(f"Changing Node Type to: {modifications['Node Type']}")
+            apply_changes(modified_qep["Plan"], {"Node Type": modifications["Node Type"]})
+
         return modified_qep
 
-    def logical_transformations(self, query: str) -> str:
-        """
-        Apply logical query plan transformations such as pushing selections, projections,
-        and replacing Cartesian products with joins.
 
-        :param query: Original SQL query.
-        :return: Transformed SQL query.
+
+
+    def logical_transformations(self, query: str, modifications: Dict) -> str:
         """
-        # Example of pushing selections down and reordering joins
-        # NOTE: In practice, implement a parser for SQL or use a library
-        transformed_query = query  # Placeholder for transformation logic
-        print("Logical transformations applied.")
+        Apply transformations to the query based on logical heuristics.
+        """
+        transformed_query = query
+        if "Push Selections" in modifications:
+            # Example: Push selection conditions closer to base tables
+            transformed_query = self.push_selections(query)
+        if "Reorder Joins" in modifications:
+            # Example: Reorder joins based on estimated cardinalities
+            transformed_query = self.reorder_joins(query, modifications["Join Order"])
         return transformed_query
 
     def apply_planner_settings(self, modifications: Dict) -> str:
         """
-        Apply planner settings to enforce specific behaviors for the AQP.
-
-        :param modifications: The desired modifications (e.g., "Merge Join").
-        :return: SQL commands to set planner settings.
+        Apply planner settings to enforce specific behaviors for the AQP, including scan types.
         """
-        settings = {
+        settings = []
+        
+        # Apply node type modifications (join type, etc.)
+        if "Node Type" in modifications:
+            settings.append(self.get_operator_setting(modifications["Node Type"]))
+        
+        # Apply scan type modifications (e.g., Index Scan, Seq Scan)
+        if "Scan Type" in modifications:
+            scan_type = modifications["Scan Type"]
+            if scan_type == "Index Scan":
+                settings.append("SET enable_seqscan = OFF; SET enable_indexscan = ON;")
+            elif scan_type == "Seq Scan":
+                settings.append("SET enable_seqscan = ON; SET enable_indexscan = OFF;")
+        
+        # Handle other planner settings like Join Order, Parallelism
+        if "Join Order" in modifications:
+            settings.append(f"SET join_collapse_limit = {len(modifications['Join Order'])};")
+        if "Parallelism" in modifications:
+            settings.append("SET max_parallel_workers_per_gather = 0;")
+        
+        # Return the settings as a single query string
+        planner_query = " ".join(settings)
+        print(f"Planner settings applied: {planner_query}")  # Debug print to verify applied settings
+        return planner_query
+
+
+
+    def get_operator_setting(self, operator_type: str) -> str:
+        """
+        Map operator types to PostgreSQL settings.
+        """
+        mapping = {
             "Merge Join": "SET enable_hashjoin = OFF; SET enable_mergejoin = ON;",
             "Hash Join": "SET enable_mergejoin = OFF; SET enable_hashjoin = ON;",
-            "Nested Loop": "SET enable_mergejoin = OFF; SET enable_hashjoin = OFF; SET enable_nestloop = ON;",
-            "Seq Scan": "SET enable_seqscan = ON;",
-            "Index Scan": "SET enable_seqscan = OFF; SET enable_indexscan = ON;"
+            "Nested Loop": "SET enable_mergejoin = OFF; SET enable_hashjoin = OFF; SET enable_nestloop = ON;"
         }
-        return settings.get(modifications.get("Node Type", ""), "")
+        return mapping.get(operator_type, "")
+
+
 
     def retrieve_aqp(self, original_sql: str, modifications: Dict) -> Dict:
         """
         Retrieves the Alternative Query Plan (AQP) for the modified SQL query.
         Applies planner settings to enforce desired behavior.
-
-        :param original_sql: The original SQL query.
-        :param modifications: The modifications to apply for generating the AQP.
-        :return: The AQP as a dictionary.
         """
         planner_settings = self.apply_planner_settings(modifications)
+        print(f"Applied planner settings for AQP: {planner_settings}")  # Debug print
 
         try:
             with self.connect_to_db() as conn:
                 with conn.cursor() as cursor:
-                    # Apply planner settings
+                    # Apply planner settings BEFORE executing EXPLAIN for AQP
                     if planner_settings:
                         cursor.execute(planner_settings)
 
-                    # Apply logical transformations
-                    transformed_sql = self.logical_transformations(original_sql)
+                    # Log modifications for debugging
+                    print(f"Modified SQL for AQP: {original_sql}")  # Debug print
 
-                    # Retrieve the AQP
-                    cursor.execute(f"EXPLAIN (FORMAT JSON) {transformed_sql}")
+                    # Retrieve AQP with EXPLAIN
+                    cursor.execute(f"EXPLAIN (FORMAT JSON) {original_sql}")
                     aqp = cursor.fetchone()[0][0]
 
-                    # Reset settings to default
-                    cursor.execute("RESET enable_hashjoin; RESET enable_mergejoin; RESET enable_nestloop;")
+                    # Return AQP and keep settings applied for comparison
                     return aqp
+
         except psycopg2.Error as e:
+            print(f"Error retrieving AQP: {e}")  # Debug print
             raise RuntimeError(f"Error retrieving AQP: {e}")
+
+
 
     def compare_costs(self, qep: Dict, aqp: Dict) -> Dict:
         """
-        Compares the costs of the QEP and the AQP.
-
-        :param qep: The original QEP.
-        :param aqp: The modified AQP.
-        :return: A dictionary containing cost comparison results.
+        Compare costs of the QEP and AQP with a detailed breakdown.
         """
+        import json
+        print("QEP COMPARE COST DEBUG: " + json.dumps(qep, indent=4))  # Pretty-print with indentation
+        print("AQP COMPARE COST DEBUG: " + json.dumps(aqp, indent=4))  # Pretty-print with indentation
+
         original_cost = float(qep["Plan"].get("Total Cost", -1))
         modified_cost = float(aqp["Plan"].get("Total Cost", -1))
+
+        # Ensure original cost is valid
+        if original_cost == -1 or modified_cost == -1:
+            raise ValueError("Failed to retrieve cost from QEP or AQP.")
+        
+        # Debugging prints
+        print(f"Original QEP Cost: {original_cost}")
+        print(f"Modified AQP Cost: {modified_cost}")
+
         return {
             "Original Cost": original_cost,
             "Modified Cost": modified_cost,
             "Cost Difference": modified_cost - original_cost
         }
+
+

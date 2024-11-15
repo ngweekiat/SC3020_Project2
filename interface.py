@@ -15,9 +15,13 @@ Requirements:
 """
 
 import sys
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QTextEdit, QLabel, QTreeWidget, QTreeWidgetItem
+from PyQt6.QtWidgets import QApplication, QWidget, QScrollArea, QGridLayout, QTreeWidgetItemIterator, QLineEdit, QVBoxLayout, QPushButton, QTextEdit, QLabel, QTreeWidget, QTreeWidgetItem
 from PyQt6.QtCore import Qt
 from whatif import WhatIfAnalysis
+from PyQt6.QtWidgets import QComboBox
+from graphviz import Digraph
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene
 
 
 class QEPInterface(QWidget):
@@ -33,47 +37,119 @@ class QEPInterface(QWidget):
         # Initialize What-If Analysis Class
         self.whatif = WhatIfAnalysis()
 
-        # Layout for the entire window
-        self.layout = QVBoxLayout(self)
+        # Main layout
+        main_layout = QVBoxLayout(self)
 
-        # SQL Query Input Area
+        # Create a scrollable area
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)
+        self.container_widget = QWidget()
+        self.grid_layout = QGridLayout(self.container_widget)
+        self.scroll_area.setWidget(self.container_widget)
+        main_layout.addWidget(self.scroll_area)
+
+        # Section 1: SQL Input Area
         self.query_input_label = QLabel("Enter SQL Query:")
         self.query_input = QTextEdit(self)
         self.query_input.setPlaceholderText("Enter SQL query here")
-        self.layout.addWidget(self.query_input_label)
-        self.layout.addWidget(self.query_input)
+        self.query_input.setFixedHeight(100)  # Reduce the height of the input area
 
-        # Buttons for query execution and analysis
-        self.run_query_button = QPushButton("Generate QEP", self)
+        self.grid_layout.addWidget(self.query_input_label, 0, 0, 1, 2)
+        self.grid_layout.addWidget(self.query_input, 1, 0, 1, 2)
+
+        # Section 2: Execution Options
+        self.run_query_button = QPushButton("Generate QEP")
         self.run_query_button.clicked.connect(self.generate_qep)
 
-        self.modify_qep_button = QPushButton("Modify QEP (What-If Analysis)", self)
+        self.modify_qep_button = QPushButton("Modify QEP (What-If Analysis)")
         self.modify_qep_button.clicked.connect(self.modify_qep)
-        self.modify_qep_button.setEnabled(False)  # Disabled until QEP is generated
+        self.modify_qep_button.setEnabled(False)
 
-        self.layout.addWidget(self.run_query_button)
-        self.layout.addWidget(self.modify_qep_button)
+        self.planner_settings_label = QLabel("Select Planner Settings:")
+        self.planner_settings = QComboBox(self)
+        self.planner_settings.addItems([
+            "Default",
+            "Force Hash Join",
+            "Force Merge Join",
+            "Force Nested Loop",
+            "Force Index Scan",
+            "Force Seq Scan"
+        ])
 
-        # Tree to display the QEP
-        self.qep_tree_label = QLabel("Query Execution Plan (QEP):")
-        self.qep_tree = QTreeWidget(self)
-        self.qep_tree.setHeaderLabel("QEP Nodes")
-        self.layout.addWidget(self.qep_tree_label)
-        self.layout.addWidget(self.qep_tree)
+        self.grid_layout.addWidget(self.planner_settings_label, 2, 0)
+        self.grid_layout.addWidget(self.planner_settings, 2, 1)
+        self.grid_layout.addWidget(self.run_query_button, 3, 0)
+        self.grid_layout.addWidget(self.modify_qep_button, 3, 1)
 
-        # SQL Query and AQP Display
+        # Section 3: Outputs
         self.sql_output_label = QLabel("Modified SQL Query:")
         self.sql_output = QTextEdit(self)
         self.sql_output.setReadOnly(True)
-        self.layout.addWidget(self.sql_output_label)
-        self.layout.addWidget(self.sql_output)
+        self.sql_output.setFixedHeight(100)  # Set appropriate height for the output
 
-        # Cost Comparison Output
         self.cost_comparison_label = QLabel("Cost Comparison:")
         self.cost_comparison = QTextEdit(self)
         self.cost_comparison.setReadOnly(True)
-        self.layout.addWidget(self.cost_comparison_label)
-        self.layout.addWidget(self.cost_comparison)
+        self.cost_comparison.setFixedHeight(100)
+
+        self.grid_layout.addWidget(self.sql_output_label, 4, 0)
+        self.grid_layout.addWidget(self.sql_output, 5, 0, 1, 2)
+        self.grid_layout.addWidget(self.cost_comparison_label, 6, 0)
+        self.grid_layout.addWidget(self.cost_comparison, 7, 0, 1, 2)
+
+        # Section 4: Visualizations
+        self.qep_graph_label = QLabel("Query Execution Plan (Graphical Tree):")
+        self.qep_graph_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.qep_graph_view = QGraphicsView(self)
+        self.qep_graph_scene = QGraphicsScene(self)
+        self.qep_graph_view.setScene(self.qep_graph_scene)
+
+        self.grid_layout.addWidget(self.qep_graph_label, 8, 0, 1, 2)
+        self.grid_layout.addWidget(self.qep_graph_view, 9, 0, 1, 2)
+
+        self.qep_tree_label = QLabel("QEP Tree View:")
+        self.qep_tree = QTreeWidget(self)
+        self.qep_tree.setHeaderLabels(["Node Type", "Total Cost", "Details"])
+        self.grid_layout.addWidget(self.qep_tree_label, 10, 0)
+        self.grid_layout.addWidget(self.qep_tree, 11, 0)
+
+        self.aqp_tree_label = QLabel("AQP Tree View:")
+        self.aqp_tree = QTreeWidget(self)
+        self.aqp_tree.setHeaderLabels(["Node Type", "Total Cost", "Details"])
+        self.grid_layout.addWidget(self.aqp_tree_label, 10, 1)
+        self.grid_layout.addWidget(self.aqp_tree, 11, 1)
+
+        # Set stretch factors for dynamic resizing
+        self.grid_layout.setRowStretch(1, 1)
+        self.grid_layout.setRowStretch(5, 1)
+        self.grid_layout.setRowStretch(9, 2)
+
+
+
+
+    def populate_tree_widget(self, parent_item, plan):
+        """
+        Recursively populate a QTreeWidget with the QEP or AQP structure.
+
+        :param parent_item: QTreeWidgetItem to which the current node will be added.
+        :param plan: Dictionary representing the QEP or AQP node.
+        """
+        # Extract Node Type and Total Cost
+        node_type = plan.get("Node Type", "Unknown")
+        total_cost = plan.get("Total Cost", "N/A")
+        
+        # Format details for additional attributes
+        details = ", ".join(f"{key}: {value}" for key, value in plan.items() 
+                            if key not in ("Node Type", "Plans", "Total Cost"))
+        
+        # Create current node with Node Type and Total Cost
+        current_item = QTreeWidgetItem(parent_item, [node_type, f"Cost: {total_cost}", details])
+
+        # Recursively add child nodes
+        for child_plan in plan.get("Plans", []):
+            self.populate_tree_widget(current_item, child_plan)
+
+
 
     def generate_qep(self):
         """
@@ -85,65 +161,101 @@ class QEPInterface(QWidget):
             return
 
         try:
-            qep = self.whatif.retrieve_qep(query)
+            # Retrieve selected planner settings
+            selected_setting = self.planner_settings.currentText()
+            modifications = {}
+            if "Force" in selected_setting:
+                # Parse setting to apply planner configurations
+                node_type = selected_setting.split()[-2]
+                modifications = {"Node Type": node_type}
+
+            # Call retrieve_qep with modifications
+            qep = self.whatif.retrieve_qep(query, modifications)
+
+            # Clear and populate the QEP tree view
             self.qep_tree.clear()
-            self.populate_tree(self.qep_tree, qep["Plan"])
+            root_item = QTreeWidgetItem(self.qep_tree, ["Root", "Query Execution Plan"])
+            self.populate_tree_widget(root_item, qep["Plan"])
+            self.qep_tree.expandAll()
+
+            # Render the QEP as a graphical tree
+            self.render_qep_graph(qep["Plan"])
             self.modify_qep_button.setEnabled(True)
+
         except Exception as e:
             self.display_message(f"Error generating QEP: {e}")
 
-    def populate_tree(self, tree_widget, node_data):
+
+    def render_qep_graph(self, plan):
         """
-        Populate the QEP tree with the processed QEP data.
+        Render the QEP as a graphical tree using Graphviz and display it in the GUI.
         """
-        def add_node(parent, node_data):
-            node_text = f"{node_data.get('Node Type', 'Unknown')} (Cost: {node_data.get('Total Cost', 'N/A')})"
-            node_item = QTreeWidgetItem(parent, [node_text])
+        graph = Digraph(format="png")
+        self.add_plan_to_graph(graph, plan)  # Helper function to populate the graph
 
-            for key, value in node_data.items():
-                if isinstance(value, dict) or isinstance(value, list):
-                    continue  # Skip nested structures for now
-                QTreeWidgetItem(node_item, [f"{key}: {value}"])
+        graph_path = "qep_graph"
+        graph.render(graph_path, cleanup=True)  # Save the graph as an image
 
-            if "Plans" in node_data:
-                for child in node_data["Plans"]:
-                    add_node(node_item, child)
+        # Display the graph in the QGraphicsView
+        pixmap = QPixmap(f"{graph_path}.png")
+        self.qep_graph_scene.clear()
+        self.qep_graph_scene.addPixmap(pixmap)
+        self.qep_graph_view.setScene(self.qep_graph_scene)
 
-        root = QTreeWidgetItem(tree_widget, ["Root Plan"])
-        add_node(root, node_data)
-        tree_widget.addTopLevelItem(root)
-        tree_widget.expandAll()
-
-    def modify_qep(self):
+    def add_plan_to_graph(self, graph, node, parent_id=None, node_id=0):
         """
-        Perform the what-if analysis by modifying the QEP and generating the AQP.
+        Recursively add nodes to the Graphviz graph for the QEP.
         """
-        query = self.query_input.toPlainText().strip()
-        if not query:
-            self.display_message("Error: Please enter a SQL query.")
-            return
+        node_label = f"{node.get('Node Type', 'Unknown')}\nCost: {node.get('Total Cost', 'N/A')}"
+        current_id = str(node_id)
+        graph.node(current_id, label=node_label)
 
-        try:
-            modifications = {"Node Type": "Merge Join"}  # Example: Force Merge Join
-            qep = self.whatif.retrieve_qep(query)
-            aqp = self.whatif.retrieve_aqp(query, modifications)
+        if parent_id is not None:
+            graph.edge(parent_id, current_id)
 
-            # Update QEP Tree with AQP
-            self.qep_tree.clear()
-            self.populate_tree(self.qep_tree, aqp["Plan"])
+        # Recursively add child nodes
+        for i, child in enumerate(node.get("Plans", [])):
+            self.add_plan_to_graph(graph, child, current_id, node_id=(node_id * 10 + i + 1))
 
-            # Generate the modified SQL query for display
-            modified_query = self.generate_modified_query(query, modifications)
-            self.sql_output.setPlainText(modified_query)
 
-            # Display Cost Comparison
-            cost_comparison = self.whatif.compare_costs(qep, aqp)
-            self.cost_comparison.setPlainText(f"Original Cost: {cost_comparison['Original Cost']}\n"
-                                              f"Modified Cost: {cost_comparison['Modified Cost']}\n"
-                                              f"Cost Difference: {cost_comparison['Cost Difference']}")
+    def setup_tree_interaction(self):
+        """
+        Add interactivity to the QEP Tree (e.g., right-click to modify nodes).
+        """
+        self.qep_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.qep_tree.customContextMenuRequested.connect(self.open_context_menu)
 
-        except Exception as e:
-            self.display_message(f"Error modifying QEP: {e}")
+
+    def open_context_menu(self, position):
+        """
+        Show context menu to allow node-specific modifications.
+        """
+        item = self.qep_tree.itemAt(position)
+        if item:
+            menu = QMenu()
+            force_hash = QAction("Force Hash Join", self)
+            force_merge = QAction("Force Merge Join", self)
+            force_nestloop = QAction("Force Nested Loop", self)
+
+            force_hash.triggered.connect(lambda: self.modify_node(item, "Hash Join"))
+            force_merge.triggered.connect(lambda: self.modify_node(item, "Merge Join"))
+            force_nestloop.triggered.connect(lambda: self.modify_node(item, "Nested Loop"))
+
+            menu.addAction(force_hash)
+            menu.addAction(force_merge)
+            menu.addAction(force_nestloop)
+            menu.exec(self.qep_tree.viewport().mapToGlobal(position))
+
+    def modify_node(self, item, new_operator):
+        """
+        Modify the selected node in the QEP tree.
+        """
+        item.setText(0, f"{new_operator} (Modified)")
+        # Store the modification for backend processing
+        node_id = item.data(0, Qt.ItemDataRole.UserRole)
+        self.modified_nodes[node_id] = {"Node Type": new_operator}
+
+
 
     def generate_modified_query(self, original_query, modifications):
         """
@@ -160,9 +272,70 @@ class QEPInterface(QWidget):
 
     def display_message(self, message):
         """
-        Display error or status messages.
+        Display error or status messages in the cost comparison panel.
         """
         self.cost_comparison.setPlainText(message)
+
+
+    def modify_qep(self):
+        """
+        Perform the what-if analysis by modifying the QEP and generating the AQP.
+        """
+        query = self.query_input.toPlainText().strip()
+        if not query:
+            self.display_message("Error: Please enter a SQL query.")
+            return
+
+        try:
+            # Retrieve selected planner setting
+            selected_setting = self.planner_settings.currentText()
+            modifications = {}
+
+            # Handle scan type modification
+            if "Force Index Scan" in selected_setting:
+                modifications["Scan Type"] = "Index Scan"
+            elif "Force Seq Scan" in selected_setting:
+                modifications["Scan Type"] = "Seq Scan"
+
+            # Handle node type modification (e.g., Hash Join, Nested Loop)
+            if "Force Hash Join" in selected_setting:
+                modifications["Node Type"] = "Hash Join"
+            elif "Force Merge Join" in selected_setting:
+                modifications["Node Type"] = "Merge Join"
+            elif "Force Nested Loop" in selected_setting:
+                modifications["Node Type"] = "Nested Loop"
+
+            # Retrieve QEP and AQP
+            qep = self.whatif.retrieve_qep(query)
+            aqp = self.whatif.retrieve_aqp(query, modifications)
+
+            # Populate the QEP tree view
+            self.qep_tree.clear()
+            qep_root_item = QTreeWidgetItem(self.qep_tree, ["Root", "Query Execution Plan"])
+            self.populate_tree_widget(qep_root_item, qep["Plan"])
+            self.qep_tree.expandAll()
+
+            # Populate the AQP tree view
+            self.aqp_tree.clear()
+            aqp_root_item = QTreeWidgetItem(self.aqp_tree, ["Root", "Alternative Query Plan"])
+            self.populate_tree_widget(aqp_root_item, aqp["Plan"])
+            self.aqp_tree.expandAll()
+
+            # Display the modified SQL query and cost comparison
+            modified_query = self.generate_modified_query(query, modifications)
+            self.sql_output.setPlainText(modified_query)
+
+            cost_comparison = self.whatif.compare_costs(qep, aqp)
+            self.cost_comparison.setPlainText(f"Original Cost: {cost_comparison['Original Cost']}\n"
+                                            f"Modified Cost: {cost_comparison['Modified Cost']}\n"
+                                            f"Cost Difference: {cost_comparison['Cost Difference']}")
+
+        except Exception as e:
+            self.display_message(f"Error modifying QEP: {e}")
+
+
+
+
 
 
 if __name__ == "__main__":
