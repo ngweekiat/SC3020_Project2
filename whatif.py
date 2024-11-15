@@ -18,7 +18,6 @@ Requirements:
         - Avoid hardcoding schema-specific or query-specific logic.
 """
 
-
 import psycopg2
 import os
 from typing import Dict
@@ -34,9 +33,6 @@ class WhatIfAnalysis:
     """
 
     def __init__(self):
-        """
-        Initializes the What-If Analysis tool with database connection parameters.
-        """
         self.conn_params = {
             "host": os.getenv("DB_HOST", "localhost"),
             "port": os.getenv("DB_PORT", "5432"),
@@ -47,7 +43,7 @@ class WhatIfAnalysis:
 
     def connect_to_db(self):
         """
-        Establish a connection to the PostgreSQL database.
+        Establishes a connection to the PostgreSQL database.
         """
         try:
             return psycopg2.connect(**self.conn_params)
@@ -56,7 +52,7 @@ class WhatIfAnalysis:
 
     def retrieve_qep(self, query: str) -> Dict:
         """
-        Retrieve the Query Execution Plan (QEP) for the given SQL query.
+        Retrieves the Query Execution Plan (QEP) for the given SQL query.
 
         :param query: The SQL query.
         :return: The QEP as a dictionary.
@@ -65,19 +61,20 @@ class WhatIfAnalysis:
             with self.connect_to_db() as conn:
                 with conn.cursor() as cursor:
                     cursor.execute(f"EXPLAIN (FORMAT JSON) {query}")
-                    qep = cursor.fetchone()[0][0]
-            return qep
+                    return cursor.fetchone()[0][0]
         except psycopg2.Error as e:
             raise RuntimeError(f"Error retrieving QEP: {e}")
 
     def modify_qep(self, original_qep: Dict, modifications: Dict) -> Dict:
         """
-        Modify the QEP based on user-specified changes.
+        Modifies the QEP based on user-specified changes.
 
         :param original_qep: Original QEP as a dictionary.
-        :param modifications: Modifications to be applied (e.g., operator type changes).
+        :param modifications: Modifications to be applied (e.g., operator changes).
         :return: The modified QEP structure.
         """
+        modified_qep = original_qep.copy()
+
         def apply_changes(node, changes):
             for key, value in changes.items():
                 if key in node:
@@ -87,13 +84,12 @@ class WhatIfAnalysis:
                     if i < len(changes.get("Children", [])):
                         apply_changes(child, changes["Children"][i])
 
-        modified_qep = original_qep.copy()
         apply_changes(modified_qep["Plan"], modifications)
         return modified_qep
 
     def generate_modified_sql(self, original_sql: str, modifications: Dict) -> str:
         """
-        Generate a modified SQL query based on QEP changes.
+        Generates a modified SQL query based on the QEP modifications.
 
         :param original_sql: The original SQL query.
         :param modifications: Modifications made to the QEP.
@@ -110,7 +106,7 @@ class WhatIfAnalysis:
 
     def retrieve_aqp(self, modified_sql: str) -> Dict:
         """
-        Retrieve the Alternative Query Plan (AQP) for the modified SQL query.
+        Retrieves the Alternative Query Plan (AQP) for the modified SQL query.
 
         :param modified_sql: The modified SQL query.
         :return: The AQP as a dictionary.
@@ -119,7 +115,7 @@ class WhatIfAnalysis:
 
     def compare_costs(self, qep: Dict, aqp: Dict) -> Dict:
         """
-        Compare the costs of the QEP and the AQP.
+        Compares the costs of the QEP and the AQP.
 
         :param qep: The original QEP.
         :param aqp: The modified AQP.
@@ -132,37 +128,3 @@ class WhatIfAnalysis:
             "Modified Cost": modified_cost,
             "Cost Difference": modified_cost - original_cost
         }
-
-
-# Example Usage
-if __name__ == "__main__":
-    whatif = WhatIfAnalysis()
-
-    # Define the original query
-    original_query = "SELECT * FROM customer C, orders O WHERE C.c_custkey = O.o_custkey;"
-
-    print("Retrieving original QEP...")
-    original_qep = whatif.retrieve_qep(original_query)
-    print("Original QEP:", original_qep)
-
-    # Define modifications to QEP
-    modifications = {
-        "Node Type": "Merge Join",
-        "Children": []
-    }
-
-    print("Generating modified QEP...")
-    modified_qep = whatif.modify_qep(original_qep, modifications)
-    print("Modified QEP:", modified_qep)
-
-    print("Generating modified SQL...")
-    modified_sql = whatif.generate_modified_sql(original_query, modifications)
-    print("Modified SQL:", modified_sql)
-
-    print("Retrieving modified AQP...")
-    aqp = whatif.retrieve_aqp(modified_sql)
-    print("Modified AQP:", aqp)
-
-    print("Comparing costs...")
-    cost_comparison = whatif.compare_costs(original_qep, aqp)
-    print("Cost Comparison:", cost_comparison)
