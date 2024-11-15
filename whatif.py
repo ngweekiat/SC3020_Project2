@@ -65,9 +65,6 @@ class WhatIfAnalysis:
                     cursor.execute(f"EXPLAIN (FORMAT JSON) {query}")
                     qep = cursor.fetchone()[0][0]
                     
-                    # Debug: Print the retrieved QEP for inspection
-                    print("Retrieved QEP:", qep)  # Debug statement
-
                     return qep
         except psycopg2.Error as e:
             raise RuntimeError(f"Error retrieving QEP: {e}")
@@ -136,6 +133,8 @@ class WhatIfAnalysis:
             transformed_query = self.reorder_joins(query, modifications["Join Order"])
         return transformed_query
 
+
+
     def apply_planner_settings(self, modifications: Dict) -> str:
         """
         Apply planner settings to enforce specific behaviors for the AQP, including scan types.
@@ -154,16 +153,16 @@ class WhatIfAnalysis:
             elif scan_type == "Seq Scan":
                 settings.append("SET enable_seqscan = ON; SET enable_indexscan = OFF;")
         
-        # Handle other planner settings like Join Order, Parallelism
-        if "Join Order" in modifications:
-            settings.append(f"SET join_collapse_limit = {len(modifications['Join Order'])};")
-        if "Parallelism" in modifications:
-            settings.append("SET max_parallel_workers_per_gather = 0;")
+        # Ensure modifications are targeted to avoid global penalties
+        if "Relation Name" in modifications:
+            settings.append(f"SET enable_indexonlyscan = {modifications.get('Enable Index Only', 'ON')};")
         
-        # Return the settings as a single query string
+        # Combine settings into a single query
         planner_query = " ".join(settings)
-        print(f"Planner settings applied: {planner_query}")  # Debug print to verify applied settings
+        print(f"Generated planner settings: {planner_query}")  # Debug print
         return planner_query
+
+
 
 
 
@@ -191,23 +190,24 @@ class WhatIfAnalysis:
         try:
             with self.connect_to_db() as conn:
                 with conn.cursor() as cursor:
-                    # Apply planner settings BEFORE executing EXPLAIN for AQP
+                    # Log planner settings sent to PostgreSQL
                     if planner_settings:
+                        print(f"Executing planner settings: {planner_settings}")
                         cursor.execute(planner_settings)
 
-                    # Log modifications for debugging
-                    print(f"Modified SQL for AQP: {original_sql}")  # Debug print
+                    # Log EXPLAIN command sent to PostgreSQL
+                    explain_query = f"EXPLAIN (FORMAT JSON) {original_sql}"
+                    print(f"Executing EXPLAIN query: {explain_query}")
+                    cursor.execute(explain_query)
 
-                    # Retrieve AQP with EXPLAIN
-                    cursor.execute(f"EXPLAIN (FORMAT JSON) {original_sql}")
+                    # Fetch and return the AQP
                     aqp = cursor.fetchone()[0][0]
-
-                    # Return AQP and keep settings applied for comparison
                     return aqp
 
         except psycopg2.Error as e:
             print(f"Error retrieving AQP: {e}")  # Debug print
             raise RuntimeError(f"Error retrieving AQP: {e}")
+
 
 
 
