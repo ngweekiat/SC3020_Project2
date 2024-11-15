@@ -17,3 +17,4 @@ Requirements:
         - A QEP Visualization and Editing panel.
         - A panel for displaying the modified SQL query and cost comparison.
 """
+
