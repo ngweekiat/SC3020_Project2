@@ -50,22 +50,17 @@ class QEPInterface(QWidget):
 
         # Section 1: SQL Input Area
         self.query_input_label = QLabel("Enter SQL Query:")
+        self.query_input_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.query_input = QTextEdit(self)
         self.query_input.setPlaceholderText("Enter SQL query here")
-        self.query_input.setFixedHeight(100)  # Reduce the height of the input area
+        self.query_input.setFixedHeight(100)
 
-        self.grid_layout.addWidget(self.query_input_label, 0, 0, 1, 2)
-        self.grid_layout.addWidget(self.query_input, 1, 0, 1, 2)
+        self.grid_layout.addWidget(self.query_input_label, 0, 0, 1, 3)
+        self.grid_layout.addWidget(self.query_input, 1, 0, 1, 3)
 
         # Section 2: Execution Options
-        self.run_query_button = QPushButton("Generate QEP")
-        self.run_query_button.clicked.connect(self.generate_qep)
-
-        self.modify_qep_button = QPushButton("Modify QEP (What-If Analysis)")
-        self.modify_qep_button.clicked.connect(self.modify_qep)
-        self.modify_qep_button.setEnabled(False)
-
         self.planner_settings_label = QLabel("Select Planner Settings:")
+        self.planner_settings_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.planner_settings = QComboBox(self)
         self.planner_settings.addItems([
             "Default",
@@ -75,27 +70,37 @@ class QEPInterface(QWidget):
             "Force Index Scan",
             "Force Seq Scan"
         ])
+        self.planner_settings.setFixedHeight(30)
 
-        self.grid_layout.addWidget(self.planner_settings_label, 2, 0)
-        self.grid_layout.addWidget(self.planner_settings, 2, 1)
-        self.grid_layout.addWidget(self.run_query_button, 3, 0)
-        self.grid_layout.addWidget(self.modify_qep_button, 3, 1)
+        self.run_query_button = QPushButton("Generate QEP")
+        self.run_query_button.clicked.connect(self.generate_qep)
+
+        self.modify_qep_button = QPushButton("Modify QEP (What-If Analysis)")
+        self.modify_qep_button.clicked.connect(self.modify_qep)
+        self.modify_qep_button.setEnabled(False)
+
+        self.grid_layout.addWidget(self.planner_settings_label, 2, 0, 1, 1)
+        self.grid_layout.addWidget(self.planner_settings, 2, 1, 1, 2)
+        self.grid_layout.addWidget(self.run_query_button, 3, 0, 1, 1)
+        self.grid_layout.addWidget(self.modify_qep_button, 3, 1, 1, 1)
 
         # Section 3: Outputs
         self.sql_output_label = QLabel("Modified SQL Query:")
+        self.sql_output_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.sql_output = QTextEdit(self)
         self.sql_output.setReadOnly(True)
-        self.sql_output.setFixedHeight(100)  # Set appropriate height for the output
+        self.sql_output.setFixedHeight(100)
 
         self.cost_comparison_label = QLabel("Cost Comparison:")
+        self.cost_comparison_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.cost_comparison = QTextEdit(self)
         self.cost_comparison.setReadOnly(True)
         self.cost_comparison.setFixedHeight(100)
 
-        self.grid_layout.addWidget(self.sql_output_label, 4, 0)
-        self.grid_layout.addWidget(self.sql_output, 5, 0, 1, 2)
-        self.grid_layout.addWidget(self.cost_comparison_label, 6, 0)
-        self.grid_layout.addWidget(self.cost_comparison, 7, 0, 1, 2)
+        self.grid_layout.addWidget(self.sql_output_label, 4, 0, 1, 1)
+        self.grid_layout.addWidget(self.sql_output, 5, 0, 1, 3)
+        self.grid_layout.addWidget(self.cost_comparison_label, 6, 0, 1, 1)
+        self.grid_layout.addWidget(self.cost_comparison, 7, 0, 1, 3)
 
         # Section 4: Visualizations
         self.qep_graph_label = QLabel("Query Execution Plan (Graphical Tree):")
@@ -104,25 +109,39 @@ class QEPInterface(QWidget):
         self.qep_graph_scene = QGraphicsScene(self)
         self.qep_graph_view.setScene(self.qep_graph_scene)
 
+        self.aqp_graph_label = QLabel("Alternative Query Plan (Graphical Tree):")
+        self.aqp_graph_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.aqp_graph_view = QGraphicsView(self)
+        self.aqp_graph_scene = QGraphicsScene(self)
+        self.aqp_graph_view.setScene(self.aqp_graph_scene)
+
         self.grid_layout.addWidget(self.qep_graph_label, 8, 0, 1, 2)
         self.grid_layout.addWidget(self.qep_graph_view, 9, 0, 1, 2)
+        self.grid_layout.addWidget(self.aqp_graph_label, 8, 2, 1, 2)
+        self.grid_layout.addWidget(self.aqp_graph_view, 9, 2, 1, 2)
 
+        # Section 5: Tree Views
         self.qep_tree_label = QLabel("QEP Tree View:")
         self.qep_tree = QTreeWidget(self)
         self.qep_tree.setHeaderLabels(["Node Type", "Total Cost", "Details"])
-        self.grid_layout.addWidget(self.qep_tree_label, 10, 0)
-        self.grid_layout.addWidget(self.qep_tree, 11, 0)
 
         self.aqp_tree_label = QLabel("AQP Tree View:")
         self.aqp_tree = QTreeWidget(self)
         self.aqp_tree.setHeaderLabels(["Node Type", "Total Cost", "Details"])
-        self.grid_layout.addWidget(self.aqp_tree_label, 10, 1)
-        self.grid_layout.addWidget(self.aqp_tree, 11, 1)
+
+        self.grid_layout.addWidget(self.qep_tree_label, 10, 0, 1, 1)
+        self.grid_layout.addWidget(self.qep_tree, 11, 0, 1, 2)
+        self.grid_layout.addWidget(self.aqp_tree_label, 10, 2, 1, 1)
+        self.grid_layout.addWidget(self.aqp_tree, 11, 2, 1, 2)
 
         # Set stretch factors for dynamic resizing
         self.grid_layout.setRowStretch(1, 1)
         self.grid_layout.setRowStretch(5, 1)
-        self.grid_layout.setRowStretch(9, 2)
+        self.grid_layout.setRowStretch(9, 3)
+        self.grid_layout.setColumnStretch(0, 1)
+        self.grid_layout.setColumnStretch(1, 1)
+        self.grid_layout.setColumnStretch(2, 2)
+
 
 
 
@@ -201,6 +220,23 @@ class QEPInterface(QWidget):
         self.qep_graph_scene.clear()
         self.qep_graph_scene.addPixmap(pixmap)
         self.qep_graph_view.setScene(self.qep_graph_scene)
+
+    def render_aqp_graph(self, plan):
+        """
+        Render the AQP as a graphical tree using Graphviz and display it in the GUI.
+        """
+        graph = Digraph(format="png")
+        self.add_plan_to_graph(graph, plan)  # Reuse the helper function from QEP rendering
+
+        graph_path = "aqp_graph"
+        graph.render(graph_path, cleanup=True)  # Save the graph as an image
+
+        # Display the graph in the QGraphicsView
+        pixmap = QPixmap(f"{graph_path}.png")
+        self.aqp_graph_scene.clear()
+        self.aqp_graph_scene.addPixmap(pixmap)
+        self.aqp_graph_view.setScene(self.aqp_graph_scene)
+
 
     def add_plan_to_graph(self, graph, node, parent_id=None, node_id=0):
         """
@@ -308,6 +344,10 @@ class QEPInterface(QWidget):
             # Retrieve QEP and AQP
             qep = self.whatif.retrieve_qep(query)
             aqp = self.whatif.retrieve_aqp(query, modifications)
+
+            # Render the AQP as a graphical tree
+            self.render_aqp_graph(aqp["Plan"])
+
 
             # Populate the QEP tree view
             self.qep_tree.clear()
