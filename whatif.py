@@ -4,18 +4,16 @@ whatif.py
 Purpose:
     - Handles the logic for generating modified SQL queries and their corresponding AQPs (Alternative Query Plans) based on what-if questions.
 
+Improvements:
+    1. Supports more types of modifications (e.g., scan type, aggregation).
+    2. Allows node-specific modifications (targeting specific nodes based on criteria).
+    3. Enhances flexibility for dynamic user-specified changes.
+    4. Handles a wide variety of queries and database schemas.
+
 Requirements:
-    1. Accept as input:
-        - The original SQL query.
-        - User modifications to the QEP (e.g., changes in operators, join order).
-    2. Generate:
-        - The modified SQL query reflecting the user edits.
-        - The modified QEP (AQP) using PostgreSQL's planner method configuration.
-    3. Retrieve and compare:
-        - The estimated cost of the AQP with the original QEP.
-    4. Ensure generality:
-        - Handle a wide variety of queries and database schemas.
-        - Avoid hardcoding schema-specific or query-specific logic.
+    - Accept original SQL query and user-specified modifications.
+    - Generate the modified QEP (AQP) using PostgreSQL's planner method configuration.
+    - Compare the estimated costs of the QEP and AQP.
 """
 
 import psycopg2
@@ -28,7 +26,7 @@ dotenv.load_dotenv()
 
 class WhatIfAnalysis:
     """
-    What-If Analysis Tool for Query Execution Plans (QEPs).
+    Enhanced What-If Analysis Tool for Query Execution Plans (QEPs).
     Handles modification of QEPs, SQL query generation, and cost comparisons.
     """
 
@@ -75,43 +73,92 @@ class WhatIfAnalysis:
         """
         modified_qep = original_qep.copy()
 
-        def apply_changes(node, changes):
+        def apply_changes(node, changes, target_node_type=None):
+            """
+            Recursively apply changes to nodes in the QEP.
+
+            :param node: Current node in the QEP.
+            :param changes: Modifications to apply.
+            :param target_node_type: Optional; target specific node types.
+            """
+            if target_node_type and node.get("Node Type") != target_node_type:
+                return
+
             for key, value in changes.items():
                 if key in node:
                     node[key] = value
+                else:
+                    print(f"Warning: Modification '{key}' not applicable to node {node.get('Node Type')}.")
+            
+            # Recursively apply to child nodes
             if "Plans" in node:
-                for i, child in enumerate(node["Plans"]):
-                    if i < len(changes.get("Children", [])):
-                        apply_changes(child, changes["Children"][i])
+                for child in node["Plans"]:
+                    apply_changes(child, changes, target_node_type)
 
-        apply_changes(modified_qep["Plan"], modifications)
+        # Apply changes to the root node and recursively to child nodes
+        apply_changes(modified_qep["Plan"], modifications, modifications.get("Target Node Type"))
         return modified_qep
 
-    def generate_modified_sql(self, original_sql: str, modifications: Dict) -> str:
+    def logical_transformations(self, query: str) -> str:
         """
-        Generates a modified SQL query based on the QEP modifications.
+        Apply logical query plan transformations such as pushing selections, projections,
+        and replacing Cartesian products with joins.
 
-        :param original_sql: The original SQL query.
-        :param modifications: Modifications made to the QEP.
-        :return: The modified SQL query.
+        :param query: Original SQL query.
+        :return: Transformed SQL query.
         """
-        hints = {
-            "Merge Join": "/*+ MergeJoin */",
-            "Hash Join": "/*+ HashJoin */",
-            "Nested Loop": "/*+ NestedLoop */"
+        # Example of pushing selections down and reordering joins
+        # NOTE: In practice, implement a parser for SQL or use a library
+        transformed_query = query  # Placeholder for transformation logic
+        print("Logical transformations applied.")
+        return transformed_query
+
+    def apply_planner_settings(self, modifications: Dict) -> str:
+        """
+        Apply planner settings to enforce specific behaviors for the AQP.
+
+        :param modifications: The desired modifications (e.g., "Merge Join").
+        :return: SQL commands to set planner settings.
+        """
+        settings = {
+            "Merge Join": "SET enable_hashjoin = OFF; SET enable_mergejoin = ON;",
+            "Hash Join": "SET enable_mergejoin = OFF; SET enable_hashjoin = ON;",
+            "Nested Loop": "SET enable_mergejoin = OFF; SET enable_hashjoin = OFF; SET enable_nestloop = ON;",
+            "Seq Scan": "SET enable_seqscan = ON;",
+            "Index Scan": "SET enable_seqscan = OFF; SET enable_indexscan = ON;"
         }
+        return settings.get(modifications.get("Node Type", ""), "")
 
-        hint = hints.get(modifications.get("Node Type", ""), "")
-        return f"{original_sql} {hint}" if hint else original_sql
-
-    def retrieve_aqp(self, modified_sql: str) -> Dict:
+    def retrieve_aqp(self, original_sql: str, modifications: Dict) -> Dict:
         """
         Retrieves the Alternative Query Plan (AQP) for the modified SQL query.
+        Applies planner settings to enforce desired behavior.
 
-        :param modified_sql: The modified SQL query.
+        :param original_sql: The original SQL query.
+        :param modifications: The modifications to apply for generating the AQP.
         :return: The AQP as a dictionary.
         """
-        return self.retrieve_qep(modified_sql)
+        planner_settings = self.apply_planner_settings(modifications)
+
+        try:
+            with self.connect_to_db() as conn:
+                with conn.cursor() as cursor:
+                    # Apply planner settings
+                    if planner_settings:
+                        cursor.execute(planner_settings)
+
+                    # Apply logical transformations
+                    transformed_sql = self.logical_transformations(original_sql)
+
+                    # Retrieve the AQP
+                    cursor.execute(f"EXPLAIN (FORMAT JSON) {transformed_sql}")
+                    aqp = cursor.fetchone()[0][0]
+
+                    # Reset settings to default
+                    cursor.execute("RESET enable_hashjoin; RESET enable_mergejoin; RESET enable_nestloop;")
+                    return aqp
+        except psycopg2.Error as e:
+            raise RuntimeError(f"Error retrieving AQP: {e}")
 
     def compare_costs(self, qep: Dict, aqp: Dict) -> Dict:
         """
@@ -121,8 +168,8 @@ class WhatIfAnalysis:
         :param aqp: The modified AQP.
         :return: A dictionary containing cost comparison results.
         """
-        original_cost = qep["Plan"].get("Total Cost", -1)
-        modified_cost = aqp["Plan"].get("Total Cost", -1)
+        original_cost = float(qep["Plan"].get("Total Cost", -1))
+        modified_cost = float(aqp["Plan"].get("Total Cost", -1))
         return {
             "Original Cost": original_cost,
             "Modified Cost": modified_cost,

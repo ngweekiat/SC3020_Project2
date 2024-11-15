@@ -3,156 +3,153 @@ interface.py
 -------------
 Purpose:
     - Manages the graphical user interface (GUI) for the application.
+    - Allows users to generate QEPs, modify them (What-If analysis), and retrieve AQPs.
 
 Requirements:
     1. Allow users to:
-        - Choose a database schema (e.g., TPC-H).
         - Input SQL queries via a Query panel.
         - View the QEP (Query Execution Plan) in a visual tree format.
-        - Interactively edit the QEP for posing what-if questions (e.g., changing operators or join orders).
-        - View the modified SQL query generated from user edits.
-        - Compare the costs of the modified query plan (AQP) with the original QEP.
-    2. Provide a user-friendly interface with:
-        - A Query Input panel for entering SQL queries.
-        - A QEP Visualization and Editing panel.
-        - A panel for displaying the modified SQL query and cost comparison.
+        - Interactively edit the QEP to pose what-if questions (e.g., changing operators or join orders).
+        - View the modified SQL query and the corresponding AQP.
+        - Compare the costs of the AQP with the original QEP.
 """
 
-
-from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtWidgets import QTreeWidgetItem, QHeaderView
-import pyqtgraph as pg
-from preprocessing import Preprocessing
+import sys
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QTextEdit, QLabel, QTreeWidget, QTreeWidgetItem
+from PyQt6.QtCore import Qt
 from whatif import WhatIfAnalysis
+from preprocessing import Preprocessing
 
-colorGradient = ["#DDF4F6", "#BCF1F5", "#99EDF3", "#77ECF5", "#47E4F0", "#0CD4E3", "#06C0CE", "#04A6B2", "#01818A",
-                 "#005E65", "#004146"]
-
-
-class MainUI(QtWidgets.QMainWindow):
+class QEPInterface(QWidget):
     """
-    Main GUI for the What-If Analysis Tool
+    GUI to interactively visualize and modify Query Execution Plans (QEP).
     """
 
-    def __init__(self, login_details, db_list):
+    def __init__(self):
         super().__init__()
-        self.login_details = login_details
-        self.db_list = db_list
-        self.setWindowTitle("What-If Analysis of Query Plans")
-        self.resize(1350, 900)
-        self.initUI()
+        self.setWindowTitle("QEP and AQP What-If Analysis")
+        self.setGeometry(100, 100, 1200, 800)
 
-    def initUI(self):
+        # Layout for the entire window
+        self.layout = QVBoxLayout(self)
+
+        # SQL Query Input Area
+        self.query_input_label = QLabel("Enter SQL Query:")
+        self.query_input = QTextEdit(self)
+        self.query_input.setPlaceholderText("Enter SQL query here")
+        self.layout.addWidget(self.query_input_label)
+        self.layout.addWidget(self.query_input)
+
+        # Buttons for query execution and analysis
+        self.run_query_button = QPushButton("Generate QEP", self)
+        self.run_query_button.clicked.connect(self.generate_qep)
+
+        self.modify_qep_button = QPushButton("Modify QEP (What-If Analysis)", self)
+        self.modify_qep_button.clicked.connect(self.modify_qep)
+        self.modify_qep_button.setEnabled(False)  # Disabled until QEP is generated
+
+        self.layout.addWidget(self.run_query_button)
+        self.layout.addWidget(self.modify_qep_button)
+
+        # Tree to display the QEP
+        self.qep_tree_label = QLabel("Query Execution Plan (QEP):")
+        self.qep_tree = QTreeWidget(self)
+        self.qep_tree.setHeaderLabel("QEP Nodes")
+        self.layout.addWidget(self.qep_tree_label)
+        self.layout.addWidget(self.qep_tree)
+
+        # SQL Query and AQP Display
+        self.sql_output_label = QLabel("Modified SQL Query:")
+        self.sql_output = QTextEdit(self)
+        self.sql_output.setReadOnly(True)
+        self.layout.addWidget(self.sql_output_label)
+        self.layout.addWidget(self.sql_output)
+
+        # Cost Comparison Output
+        self.cost_comparison_label = QLabel("Cost Comparison:")
+        self.cost_comparison = QTextEdit(self)
+        self.cost_comparison.setReadOnly(True)
+        self.layout.addWidget(self.cost_comparison_label)
+        self.layout.addWidget(self.cost_comparison)
+
+    def generate_qep(self):
         """
-        Initialize the main user interface components.
+        Generate the QEP for the SQL query entered by the user.
         """
-        self.centralWidget = QtWidgets.QWidget(self)
-        self.setCentralWidget(self.centralWidget)
+        query = self.query_input.toPlainText().strip()
+        if not query:
+            self.display_message("Error: Please enter a SQL query.")
+            return
 
-        # Layouts
-        main_layout = QtWidgets.QVBoxLayout(self.centralWidget)
-        query_layout = QtWidgets.QHBoxLayout()
-        plan_layout = QtWidgets.QHBoxLayout()
-        comparison_layout = QtWidgets.QVBoxLayout()
-
-        # Query Input Area
-        self.queryInput = QtWidgets.QPlainTextEdit(self)
-        self.queryInput.setPlaceholderText("Enter your SQL query here...")
-        self.queryInput.setStyleSheet("font: 12px; color: #018076;")
-        query_layout.addWidget(self.queryInput)
-
-        # Execute Query Button
-        self.executeButton = QtWidgets.QPushButton("Execute Query", self)
-        self.executeButton.setStyleSheet("background-color: #004146; color: white; font: 14px;")
-        self.executeButton.clicked.connect(self.execute_query)
-        query_layout.addWidget(self.executeButton)
-
-        # Add Query Layout
-        main_layout.addLayout(query_layout)
-
-        # QEP Visualization Panel
-        self.qepTree = QtWidgets.QTreeWidget(self)
-        self.qepTree.setHeaderLabel("Query Execution Plan (QEP)")
-        self.qepTree.setStyleSheet("font: 12px; color: #018076;")
-        plan_layout.addWidget(self.qepTree)
-
-        # Modified QEP Panel
-        self.modifiedQEPTree = QtWidgets.QTreeWidget(self)
-        self.modifiedQEPTree.setHeaderLabel("Modified Query Execution Plan (QEP)")
-        self.modifiedQEPTree.setStyleSheet("font: 12px; color: #018076;")
-        plan_layout.addWidget(self.modifiedQEPTree)
-
-        # Add Plan Layout
-        main_layout.addLayout(plan_layout)
-
-        # Cost Comparison Panel
-        self.graphWindow = pg.PlotWidget(self)
-        self.graphWindow.setBackground("#ffffff")
-        self.graphWindow.setStyleSheet("font: 12px; color: #018076;")
-        comparison_layout.addWidget(self.graphWindow)
-
-        # Add Comparison Layout
-        main_layout.addLayout(comparison_layout)
-
-    def execute_query(self):
-        """
-        Execute the SQL query and display the QEP.
-        """
-        query = self.queryInput.toPlainText()
         preprocessing = Preprocessing()
-        whatif = WhatIfAnalysis()
+        if not preprocessing.validate_query(query):
+            self.display_message("Error: Invalid SQL query.")
+            return
 
-        # Retrieve QEP
         try:
-            qep = preprocessing.preprocess_qep(query)
-            self.populate_tree(self.qepTree, qep)
+            qep = preprocessing.preprocess_for_gui(query)
+            self.qep_tree.clear()
+            self.populate_tree(self.qep_tree, qep)
+            self.modify_qep_button.setEnabled(True)
         except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "Error", f"Failed to retrieve QEP: {e}")
-
-        # Enable interactive modifications
-        self.qepTree.itemDoubleClicked.connect(self.modify_qep)
-
-    def modify_qep(self, item):
-        """
-        Modify the QEP based on user interaction.
-        """
-        modifications = {"Node Type": "Merge Join"}  # Example modification
-        whatif = WhatIfAnalysis()
-
-        # Generate modified QEP
-        modified_qep = whatif.modify_qep(item.data(0, QtCore.Qt.ItemDataRole.UserRole), modifications)
-        self.populate_tree(self.modifiedQEPTree, modified_qep)
-
-        # Generate AQP and compare costs
-        modified_sql = whatif.generate_modified_sql(self.queryInput.toPlainText(), modifications)
-        aqp = whatif.retrieve_aqp(modified_sql)
-        costs = whatif.compare_costs(modified_qep, aqp)
-
-        self.plot_cost_comparison(costs)
+            self.display_message(f"Error generating QEP: {e}")
 
     def populate_tree(self, tree_widget, qep_data):
         """
-        Populate the QEP tree widget with QEP data.
+        Populate the QEP tree with the processed QEP data.
         """
-        tree_widget.clear()
+        def add_node(parent, node_data):
+            node_text = f"{node_data.get('Node Type', 'Unknown')}"
+            node_item = QTreeWidgetItem(parent, [node_text])
 
-        def add_items(parent, data):
-            for key, value in data.items():
-                item = QTreeWidgetItem(parent, [f"{key}: {value}"])
-                if isinstance(value, dict):
-                    add_items(item, value)
+            for key, value in node_data["Details"].items():
+                QTreeWidgetItem(node_item, [f"{key}: {value}"])
 
-        root = QTreeWidgetItem(tree_widget, ["Root"])
-        add_items(root, qep_data)
+            for child in node_data["Children"]:
+                add_node(node_item, child)
+
+        root = QTreeWidgetItem(tree_widget, ["Root Plan"])
+        add_node(root, qep_data)
         tree_widget.addTopLevelItem(root)
+        tree_widget.expandAll()
 
-    def plot_cost_comparison(self, costs):
+    def modify_qep(self):
         """
-        Plot the cost comparison between QEP and AQPs.
+        Perform the what-if analysis by modifying the QEP and generating the AQP.
         """
-        self.graphWindow.clear()
+        query = self.query_input.toPlainText().strip()
+        if not query:
+            self.display_message("Error: Please enter a SQL query.")
+            return
 
-        labels = ["QEP", "AQP"]
-        values = [costs["Original Cost"], costs["Modified Cost"]]
-        bar_graphs = pg.BarGraphItem(x=[0, 1], height=values, width=0.6, brush="blue")
-        self.graphWindow.addItem(bar_graphs)
+        try:
+            preprocessing = Preprocessing()
+            qep = preprocessing.preprocess_for_gui(query)
+
+            modifications = {"Node Type": "Merge Join"}  # Example: Force Merge Join
+            whatif = WhatIfAnalysis()
+
+            aqp = whatif.retrieve_aqp(query, modifications)
+
+            self.qep_tree.clear()
+            self.populate_tree(self.qep_tree, aqp["Plan"])
+
+            cost_comparison = whatif.compare_costs(qep, aqp)
+            self.cost_comparison.setPlainText(f"Original Cost: {cost_comparison['Original Cost']}\n"
+                                              f"Modified Cost: {cost_comparison['Modified Cost']}\n"
+                                              f"Cost Difference: {cost_comparison['Cost Difference']}")
+        except Exception as e:
+            self.display_message(f"Error modifying QEP: {e}")
+
+    def display_message(self, message):
+        """
+        Display error or status messages.
+        """
+        self.cost_comparison.setPlainText(message)
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = QEPInterface()
+    window.show()
+    sys.exit(app.exec())

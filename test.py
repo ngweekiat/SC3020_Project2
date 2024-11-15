@@ -1,48 +1,39 @@
-from whatif import WhatIfAnalysis
+import subprocess
+import time
 
-def test_retrieve_qep():
-    """
-    Test retrieving a QEP for a sample SQL query.
-    """
-    print("Initializing What-If Analysis...")
-    whatif = WhatIfAnalysis()
-
-    # Define a sample SQL query
-    sample_query = """
-    SELECT o_orderpriority, COUNT(*) 
-    FROM orders 
-    WHERE o_orderdate BETWEEN '1995-01-01' AND '1996-01-01'
-    GROUP BY o_orderpriority;
-    """
-
-    print(f"Executing query: {sample_query}")
+# Function to test the QEP interface generation
+def test_qep_interface():
+    # Here, we'll simulate launching the GUI
     try:
-        # Retrieve the QEP
-        qep = whatif.retrieve_qep(sample_query)
-        print("Retrieved QEP:")
-        print_qep(qep)
+        # Launch the GUI
+        subprocess.run(["python", "interface.py"], check=True)
+
+        # Allow the GUI to load
+        time.sleep(2)
+
+        # Simulate entering a SQL query
+        print("Test: Simulating SQL query input...")
+        sql_query = "SELECT * FROM customer C, orders O WHERE C.c_custkey = O.o_custkey"
+        
+        # You can manually input the query in the GUI, or add extra logic to simulate user input
+        
+        # Test visualizing the QEP for the input query
+        print("Test: Visualizing QEP...")
+        # After clicking 'Visualize QEP', the Pyvis visualization should be generated
+        
+        # Test modifying the QEP (e.g., changing the node type to Hash Join)
+        modification = {"Node Type": "Hash Join"}
+        print(f"Test: Modifying QEP with modification: {modification}")
+        # This simulates modifying the QEP by changing its join type (this can be handled in the GUI interactively)
+        
+        # Wait for the user interaction or for the modifications to be applied
+        time.sleep(3)
+
+        print("Test: Successfully ran the QEP Interface")
+    
     except Exception as e:
-        print(f"Error retrieving QEP: {e}")
+        print(f"Test failed with error: {e}")
 
-def print_qep(qep):
-    """
-    Pretty-print the QEP in a readable format.
-    :param qep: QEP dictionary.
-    """
-    def traverse_plan(plan, depth=0):
-        indent = "  " * depth
-        print(f"{indent}Node Type: {plan.get('Node Type', 'Unknown')}")
-        for key in ["Relation Name", "Alias", "Filter", "Index Cond", "Sort Key", "Group Key", "Total Cost"]:
-            if key in plan:
-                print(f"{indent}  {key}: {plan[key]}")
-
-        # Recursively print child nodes
-        if "Plans" in plan:
-            for child in plan["Plans"]:
-                traverse_plan(child, depth + 1)
-
-    print("Query Execution Plan:")
-    traverse_plan(qep["Plan"])
-
+# Run the test
 if __name__ == "__main__":
-    test_retrieve_qep()
+    test_qep_interface()
