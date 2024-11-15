@@ -18,7 +18,7 @@ import sys
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QTextEdit, QLabel, QTreeWidget, QTreeWidgetItem
 from PyQt6.QtCore import Qt
 from whatif import WhatIfAnalysis
-from preprocessing import Preprocessing
+
 
 class QEPInterface(QWidget):
     """
@@ -29,6 +29,9 @@ class QEPInterface(QWidget):
         super().__init__()
         self.setWindowTitle("QEP and AQP What-If Analysis")
         self.setGeometry(100, 100, 1200, 800)
+
+        # Initialize What-If Analysis Class
+        self.whatif = WhatIfAnalysis()
 
         # Layout for the entire window
         self.layout = QVBoxLayout(self)
@@ -81,35 +84,33 @@ class QEPInterface(QWidget):
             self.display_message("Error: Please enter a SQL query.")
             return
 
-        preprocessing = Preprocessing()
-        if not preprocessing.validate_query(query):
-            self.display_message("Error: Invalid SQL query.")
-            return
-
         try:
-            qep = preprocessing.preprocess_for_gui(query)
+            qep = self.whatif.retrieve_qep(query)
             self.qep_tree.clear()
-            self.populate_tree(self.qep_tree, qep)
+            self.populate_tree(self.qep_tree, qep["Plan"])
             self.modify_qep_button.setEnabled(True)
         except Exception as e:
             self.display_message(f"Error generating QEP: {e}")
 
-    def populate_tree(self, tree_widget, qep_data):
+    def populate_tree(self, tree_widget, node_data):
         """
         Populate the QEP tree with the processed QEP data.
         """
         def add_node(parent, node_data):
-            node_text = f"{node_data.get('Node Type', 'Unknown')}"
+            node_text = f"{node_data.get('Node Type', 'Unknown')} (Cost: {node_data.get('Total Cost', 'N/A')})"
             node_item = QTreeWidgetItem(parent, [node_text])
 
-            for key, value in node_data["Details"].items():
+            for key, value in node_data.items():
+                if isinstance(value, dict) or isinstance(value, list):
+                    continue  # Skip nested structures for now
                 QTreeWidgetItem(node_item, [f"{key}: {value}"])
 
-            for child in node_data["Children"]:
-                add_node(node_item, child)
+            if "Plans" in node_data:
+                for child in node_data["Plans"]:
+                    add_node(node_item, child)
 
         root = QTreeWidgetItem(tree_widget, ["Root Plan"])
-        add_node(root, qep_data)
+        add_node(root, node_data)
         tree_widget.addTopLevelItem(root)
         tree_widget.expandAll()
 
@@ -123,23 +124,39 @@ class QEPInterface(QWidget):
             return
 
         try:
-            preprocessing = Preprocessing()
-            qep = preprocessing.preprocess_for_gui(query)
-
             modifications = {"Node Type": "Merge Join"}  # Example: Force Merge Join
-            whatif = WhatIfAnalysis()
+            qep = self.whatif.retrieve_qep(query)
+            aqp = self.whatif.retrieve_aqp(query, modifications)
 
-            aqp = whatif.retrieve_aqp(query, modifications)
-
+            # Update QEP Tree with AQP
             self.qep_tree.clear()
             self.populate_tree(self.qep_tree, aqp["Plan"])
 
-            cost_comparison = whatif.compare_costs(qep, aqp)
+            # Generate the modified SQL query for display
+            modified_query = self.generate_modified_query(query, modifications)
+            self.sql_output.setPlainText(modified_query)
+
+            # Display Cost Comparison
+            cost_comparison = self.whatif.compare_costs(qep, aqp)
             self.cost_comparison.setPlainText(f"Original Cost: {cost_comparison['Original Cost']}\n"
                                               f"Modified Cost: {cost_comparison['Modified Cost']}\n"
                                               f"Cost Difference: {cost_comparison['Cost Difference']}")
+
         except Exception as e:
             self.display_message(f"Error modifying QEP: {e}")
+
+    def generate_modified_query(self, original_query, modifications):
+        """
+        Generate a modified SQL query based on user-specified modifications.
+        This is a placeholder for logic to apply query transformations.
+
+        :param original_query: The original SQL query.
+        :param modifications: The modifications applied to the query plan.
+        :return: The modified SQL query.
+        """
+        # For demonstration, we'll append comments indicating modifications
+        modified_query = f"{original_query}\n-- Modified with: {modifications}"
+        return modified_query
 
     def display_message(self, message):
         """
