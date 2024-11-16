@@ -88,11 +88,14 @@ class WhatIfAnalysis:
             """
             node_id = node.get("Node ID")  # Ensure Node ID is part of the QEP JSON
             if node_id in modifications:
-                for key, value in modifications[node_id].items():
-                    if key == "Scan Type" and node.get("Node Type") in ["Seq Scan", "Index Scan"]:
-                        node["Node Type"] = value  # Apply scan modifications
-                    elif key == "Node Type" and node.get("Node Type") in ["Hash Join", "Merge Join", "Nested Loop"]:
-                        node["Node Type"] = value  # Apply join modifications
+                # Retrieve the latest modification from the history
+                history = modifications[node_id].get("History", [])
+                if history:
+                    latest_modification = history[-1]
+                    if latest_modification in ["Seq Scan", "Index Scan"]:
+                        node["Node Type"] = latest_modification  # Apply scan modifications
+                    elif latest_modification in ["Hash Join", "Merge Join", "Nested Loop"]:
+                        node["Node Type"] = latest_modification  # Apply join modifications
 
             # Recursively apply changes to child nodes
             for child in node.get("Plans", []):
@@ -101,6 +104,7 @@ class WhatIfAnalysis:
         # Start applying changes from the root node
         apply_changes(modified_qep["Plan"], modifications)
         return modified_qep
+
 
 
 
