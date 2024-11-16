@@ -125,11 +125,11 @@ class QEPInterface(QWidget):
         # Section 5: Tree Views
         self.qep_tree_label = QLabel("QEP Tree View:")
         self.qep_tree = QTreeWidget(self)
-        self.qep_tree.setHeaderLabels(["Node Type", "Total Cost", "Details"])
+        self.qep_tree.setHeaderLabels(["Node ID", "Node Type", "Total Cost", "Details"])
 
         self.aqp_tree_label = QLabel("AQP Tree View:")
         self.aqp_tree = QTreeWidget(self)
-        self.aqp_tree.setHeaderLabels(["Node Type", "Total Cost", "Details"])
+        self.aqp_tree.setHeaderLabels(["Node ID", "Node Type", "Total Cost", "Details"])
 
         self.grid_layout.addWidget(self.qep_tree_label, 10, 0, 1, 1)
         self.grid_layout.addWidget(self.qep_tree, 11, 0, 1, 2)
@@ -158,25 +158,27 @@ class QEPInterface(QWidget):
         :param parent_item: QTreeWidgetItem to which the current node will be added.
         :param plan: Dictionary representing the QEP or AQP node.
         """
-        # Extract Node Type and Total Cost
+        # Extract Node Type, Total Cost, and Node ID
         node_type = plan.get("Node Type", "Unknown")
         total_cost = plan.get("Total Cost", "N/A")
-        node_id = plan.get("Node ID")  # Ensure node ID exists in the JSON structure
+        node_id = plan.get("Node ID", "N/A")  # Ensure Node ID is part of the JSON structure
 
         # Format details for additional attributes
         details = ", ".join(f"{key}: {value}" for key, value in plan.items()
                             if key not in ("Node Type", "Plans", "Total Cost", "Node ID"))
 
-        # Create current node with Node Type and Total Cost
-        current_item = QTreeWidgetItem(parent_item, [node_type, f"Cost: {total_cost}", details])
+        # Create current node with Node Type, Total Cost, and Node ID
+        current_item = QTreeWidgetItem(parent_item, [f"{node_id}", node_type, f"{total_cost}", details])
 
         # Store node ID in UserRole to track modifications at the backend
-        if node_id:
+        if node_id != "N/A":
             current_item.setData(0, Qt.ItemDataRole.UserRole, node_id)
 
         # Recursively add child nodes
         for child_plan in plan.get("Plans", []):
             self.populate_tree_widget(current_item, child_plan)
+
+
 
 
 
@@ -313,22 +315,26 @@ class QEPInterface(QWidget):
         """
         Modify the selected node in the QEP tree and prepare the modification for backend.
         """
-        # Update the UI to reflect the modification
-        item.setText(0, f"{modification_type} (Modified)")
-
-        # Capture node information for backend
+        # Retrieve node ID (unchanged)
         node_id = item.data(0, Qt.ItemDataRole.UserRole)  # Assume node ID is stored in UserRole
         if not hasattr(self, 'modified_nodes'):
             self.modified_nodes = {}  # Initialize a dictionary to track modifications
 
-        # Determine if the modification is a scan or a join
-        if modification_type in ["Hash Join", "Merge Join", "Nested Loop"]:
-            self.modified_nodes[node_id] = {"Node Type": modification_type}
-        elif modification_type in ["Index Scan", "Seq Scan"]:
-            self.modified_nodes[node_id] = {"Scan Type": modification_type}
+        # Add or update modifications for this node
+        if node_id not in self.modified_nodes:
+            self.modified_nodes[node_id] = {"History": []}
+        self.modified_nodes[node_id]["History"].append(modification_type)
 
-        # Notify user that the node was modified
+        # Update only the Node Type column to reflect the modification
+        item.setText(1, f"{modification_type} (Modified)")
+
+        # Optionally, add modification history to the Details column
+        history_text = ", ".join(self.modified_nodes[node_id]["History"])
+        item.setText(3, f"History: {history_text}")
+
+        # Notify the user of the modification
         self.display_message(f"Node {node_id} modified to use {modification_type}")
+
 
 
 
