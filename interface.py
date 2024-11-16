@@ -144,6 +144,9 @@ class QEPInterface(QWidget):
         self.grid_layout.setColumnStretch(1, 1)
         self.grid_layout.setColumnStretch(2, 2)
 
+        # Allow right clicking
+        self.setup_tree_interaction()
+
 
 
 
@@ -158,17 +161,23 @@ class QEPInterface(QWidget):
         # Extract Node Type and Total Cost
         node_type = plan.get("Node Type", "Unknown")
         total_cost = plan.get("Total Cost", "N/A")
-        
+        node_id = plan.get("Node ID")  # Ensure node ID exists in the JSON structure
+
         # Format details for additional attributes
-        details = ", ".join(f"{key}: {value}" for key, value in plan.items() 
-                            if key not in ("Node Type", "Plans", "Total Cost"))
-        
+        details = ", ".join(f"{key}: {value}" for key, value in plan.items()
+                            if key not in ("Node Type", "Plans", "Total Cost", "Node ID"))
+
         # Create current node with Node Type and Total Cost
         current_item = QTreeWidgetItem(parent_item, [node_type, f"Cost: {total_cost}", details])
+
+        # Store node ID in UserRole to track modifications at the backend
+        if node_id:
+            current_item.setData(0, Qt.ItemDataRole.UserRole, node_id)
 
         # Recursively add child nodes
         for child_plan in plan.get("Plans", []):
             self.populate_tree_widget(current_item, child_plan)
+
 
 
 
@@ -285,14 +294,23 @@ class QEPInterface(QWidget):
             menu.addAction(force_nestloop)
             menu.exec(self.qep_tree.viewport().mapToGlobal(position))
 
+
     def modify_node(self, item, new_operator):
         """
-        Modify the selected node in the QEP tree.
+        Modify the selected node in the QEP tree and prepare the modification for backend.
         """
+        # Update the UI to reflect the modification
         item.setText(0, f"{new_operator} (Modified)")
-        # Store the modification for backend processing
-        node_id = item.data(0, Qt.ItemDataRole.UserRole)
+        
+        # Capture node information for backend
+        node_id = item.data(0, Qt.ItemDataRole.UserRole)  # Assume node ID is stored in UserRole
+        if not hasattr(self, 'modified_nodes'):
+            self.modified_nodes = {}  # Initialize a dictionary to track modifications
         self.modified_nodes[node_id] = {"Node Type": new_operator}
+
+        # Notify user that the node was modified
+        self.display_message(f"Node {node_id} modified to use {new_operator}")
+
 
 
 
@@ -326,46 +344,31 @@ class QEPInterface(QWidget):
             return
 
         try:
-            # Retrieve selected planner setting
-            selected_setting = self.planner_settings.currentText()
-            modifications = {}
+            # Check for modifications
+            if not hasattr(self, 'modified_nodes') or not self.modified_nodes:
+                self.display_message("No modifications to apply.")
+                return
 
-            # Handle scan type modification
-            if "Force Index Scan" in selected_setting:
-                modifications["Scan Type"] = "Index Scan"
-            elif "Force Seq Scan" in selected_setting:
-                modifications["Scan Type"] = "Seq Scan"
-
-            # Handle node type modification (e.g., Hash Join, Nested Loop)
-            if "Force Hash Join" in selected_setting:
-                modifications["Node Type"] = "Hash Join"
-            elif "Force Merge Join" in selected_setting:
-                modifications["Node Type"] = "Merge Join"
-            elif "Force Nested Loop" in selected_setting:
-                modifications["Node Type"] = "Nested Loop"
-
-            # Retrieve QEP and AQP
+            # Retrieve QEP
             qep = self.whatif.retrieve_qep(query)
-            aqp = self.whatif.retrieve_aqp(query, modifications)
+
+            # Apply modifications
+            modified_qep = self.whatif.modify_qep(qep, self.modified_nodes)
+
+            # Retrieve AQP for modified QEP
+            aqp = self.whatif.retrieve_aqp(query, self.modified_nodes)
 
             # Render the AQP as a graphical tree
             self.render_aqp_graph(aqp["Plan"])
 
-
-            # Populate the QEP tree view
+            # Populate the modified QEP tree view
             self.qep_tree.clear()
-            qep_root_item = QTreeWidgetItem(self.qep_tree, ["Root", "Query Execution Plan"])
-            self.populate_tree_widget(qep_root_item, qep["Plan"])
+            qep_root_item = QTreeWidgetItem(self.qep_tree, ["Root", "Modified Query Execution Plan"])
+            self.populate_tree_widget(qep_root_item, modified_qep["Plan"])
             self.qep_tree.expandAll()
 
-            # Populate the AQP tree view
-            self.aqp_tree.clear()
-            aqp_root_item = QTreeWidgetItem(self.aqp_tree, ["Root", "Alternative Query Plan"])
-            self.populate_tree_widget(aqp_root_item, aqp["Plan"])
-            self.aqp_tree.expandAll()
-
             # Display the modified SQL query and cost comparison
-            modified_query = self.generate_modified_query(query, modifications)
+            modified_query = self.generate_modified_query(query, self.modified_nodes)
             self.sql_output.setPlainText(modified_query)
 
             cost_comparison = self.whatif.compare_costs(qep, aqp)
@@ -375,6 +378,7 @@ class QEPInterface(QWidget):
 
         except Exception as e:
             self.display_message(f"Error modifying QEP: {e}")
+
 
 
 
