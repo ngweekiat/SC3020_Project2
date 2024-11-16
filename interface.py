@@ -36,7 +36,7 @@ class QEPInterface(QWidget):
         super().__init__()
         self.setWindowTitle("QEP and AQP What-If Analysis")
         self.setGeometry(100, 100, 1200, 800)
-
+        
         # Initialize What-If Analysis Class
         self.whatif = WhatIfAnalysis()
 
@@ -56,25 +56,12 @@ class QEPInterface(QWidget):
         self.query_input_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.query_input = QTextEdit(self)
         self.query_input.setPlaceholderText("Enter SQL query here")
-        self.query_input.setFixedHeight(100)
+        self.query_input.setFixedHeight(60)
 
         self.grid_layout.addWidget(self.query_input_label, 0, 0, 1, 3)
         self.grid_layout.addWidget(self.query_input, 1, 0, 1, 3)
 
         # Section 2: Execution Options
-        self.planner_settings_label = QLabel("Select Planner Settings:")
-        self.planner_settings_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self.planner_settings = QComboBox(self)
-        self.planner_settings.addItems([
-            "Default",
-            "Force Hash Join",
-            "Force Merge Join",
-            "Force Nested Loop",
-            "Force Index Scan",
-            "Force Seq Scan"
-        ])
-        self.planner_settings.setFixedHeight(30)
-
         self.run_query_button = QPushButton("Generate QEP")
         self.run_query_button.clicked.connect(self.generate_qep)
 
@@ -82,8 +69,7 @@ class QEPInterface(QWidget):
         self.modify_qep_button.clicked.connect(self.modify_qep)
         self.modify_qep_button.setEnabled(False)
 
-        self.grid_layout.addWidget(self.planner_settings_label, 2, 0, 1, 1)
-        self.grid_layout.addWidget(self.planner_settings, 2, 1, 1, 2)
+
         self.grid_layout.addWidget(self.run_query_button, 3, 0, 1, 1)
         self.grid_layout.addWidget(self.modify_qep_button, 3, 1, 1, 1)
 
@@ -92,13 +78,13 @@ class QEPInterface(QWidget):
         self.sql_output_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.sql_output = QTextEdit(self)
         self.sql_output.setReadOnly(True)
-        self.sql_output.setFixedHeight(100)
+        self.sql_output.setFixedHeight(60)
 
         self.cost_comparison_label = QLabel("Cost Comparison:")
         self.cost_comparison_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.cost_comparison = QTextEdit(self)
         self.cost_comparison.setReadOnly(True)
-        self.cost_comparison.setFixedHeight(100)
+        self.cost_comparison.setFixedHeight(60)
 
         self.grid_layout.addWidget(self.sql_output_label, 4, 0, 1, 1)
         self.grid_layout.addWidget(self.sql_output, 5, 0, 1, 3)
@@ -118,19 +104,28 @@ class QEPInterface(QWidget):
         self.aqp_graph_scene = QGraphicsScene(self)
         self.aqp_graph_view.setScene(self.aqp_graph_scene)
 
+        self.qep_graph_view.setStyleSheet("border: 1px solid lightgrey; border-radius: 5px;")
+        self.aqp_graph_view.setStyleSheet("border: 1px solid lightgrey; border-radius: 5px;")
+
         self.grid_layout.addWidget(self.qep_graph_label, 8, 0, 1, 2)
         self.grid_layout.addWidget(self.qep_graph_view, 9, 0, 1, 2)
         self.grid_layout.addWidget(self.aqp_graph_label, 8, 2, 1, 2)
         self.grid_layout.addWidget(self.aqp_graph_view, 9, 2, 1, 2)
 
+
         # Section 5: Tree Views
         self.qep_tree_label = QLabel("QEP Tree View:")
         self.qep_tree = QTreeWidget(self)
         self.qep_tree.setHeaderLabels(["Node ID", "Node Type", "Total Cost", "Details"])
+        self.qep_tree.setFixedHeight(300)
 
         self.aqp_tree_label = QLabel("AQP Tree View:")
         self.aqp_tree = QTreeWidget(self)
         self.aqp_tree.setHeaderLabels(["Node ID", "Node Type", "Total Cost", "Details"])
+        self.aqp_tree.setFixedHeight(300)
+
+        self.qep_tree.setStyleSheet("border: 1px solid lightgrey; border-radius: 5px;")
+        self.aqp_tree.setStyleSheet("border: 1px solid lightgrey; border-radius: 5px;")
 
         self.grid_layout.addWidget(self.qep_tree_label, 10, 0, 1, 1)
         self.grid_layout.addWidget(self.qep_tree, 11, 0, 1, 2)
@@ -194,29 +189,34 @@ class QEPInterface(QWidget):
             return
 
         try:
-            # Retrieve selected planner settings
-            selected_setting = self.planner_settings.currentText()
-            modifications = {}
-            if "Force" in selected_setting:
-                # Parse setting to apply planner configurations
-                node_type = selected_setting.split()[-2]
-                modifications = {"Node Type": node_type}
+            # Reset previous modifications and visualizations
+            self.modified_nodes = {}  # Reset any previous modifications
+            self.qep_tree.clear()  # Clear previous QEP tree view
+            self.aqp_tree.clear()  # Clear previous AQP tree view
+            self.qep_graph_scene.clear()  # Clear the previous QEP graph
+            self.aqp_graph_scene.clear()  # Clear the previous AQP graph
+            
+            # Clear the text output areas
+            self.sql_output.clear()  # Clear the modified SQL query output
+            self.cost_comparison.clear()  # Clear the cost comparison output
 
-            # Call retrieve_qep with modifications
+            # Retrieve the QEP for the original query
             qep = self.whatif.retrieve_qep(query)
 
-            # Clear and populate the QEP tree view
-            self.qep_tree.clear()
+            # Populate the QEP tree view with the new QEP
             root_item = QTreeWidgetItem(self.qep_tree, ["Root", "Query Execution Plan"])
             self.populate_tree_widget(root_item, qep["Plan"])
             self.qep_tree.expandAll()
 
             # Render the QEP as a graphical tree
             self.render_qep_graph(qep["Plan"])
+
+            # Enable the modify button since a valid QEP is generated
             self.modify_qep_button.setEnabled(True)
 
         except Exception as e:
             self.display_message(f"Error generating QEP: {e}")
+
 
 
     def render_qep_graph(self, plan):
@@ -255,9 +255,13 @@ class QEPInterface(QWidget):
     def add_plan_to_graph(self, graph, node, parent_id=None, node_id=0):
         """
         Recursively add nodes to the Graphviz graph for the QEP.
+        Ensures that the Node ID is consistent in both the graph and the tree.
         """
-        node_label = f"{node.get('Node Type', 'Unknown')}\nCost: {node.get('Total Cost', 'N/A')}"
-        current_id = str(node_id)
+        # Use the node's actual ID from the QEP/AQP structure for consistency
+        node_label = f"Node {node.get('Node ID', node_id)}: {node.get('Node Type', 'Unknown')}\nCost: {node.get('Total Cost', 'N/A')}"
+        current_id = str(node.get('Node ID', node_id))  # Ensure we use the actual Node ID from the plan
+
+        # Create Graphviz node
         graph.node(current_id, label=node_label)
 
         if parent_id is not None:
@@ -266,6 +270,7 @@ class QEPInterface(QWidget):
         # Recursively add child nodes
         for i, child in enumerate(node.get("Plans", [])):
             self.add_plan_to_graph(graph, child, current_id, node_id=(node_id * 10 + i + 1))
+
 
 
     def setup_tree_interaction(self):
@@ -354,15 +359,25 @@ class QEPInterface(QWidget):
     def generate_modified_query(self, original_query, modifications):
         """
         Generate a modified SQL query based on user-specified modifications.
-        This is a placeholder for logic to apply query transformations.
+        This version displays the modifications in a human-readable format.
 
         :param original_query: The original SQL query.
         :param modifications: The modifications applied to the query plan.
-        :return: The modified SQL query.
+        :return: The modified SQL query in a natural language format.
         """
-        # For demonstration, we'll append comments indicating modifications
-        modified_query = f"{original_query}\n-- Modified with: {modifications}"
+        modified_query = f"{original_query}\n-- Modified with:"
+        
+        for node_id, changes in modifications.items():
+            for key, value in changes.items():
+                if key == "Node Type":
+                    modified_query += f"\n  - Node {node_id}: Changed Node Type to {value}"
+                elif key == "Scan Type":
+                    modified_query += f"\n  - Node {node_id}: Changed Scan Type to {value}"
+                elif key == "Join Type":
+                    modified_query += f"\n  - Node {node_id}: Changed Join Type to {value}"
+        
         return modified_query
+
 
     def display_message(self, message):
         """
