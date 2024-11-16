@@ -27,6 +27,106 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene
 
 
+
+from PyQt6.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QVBoxLayout
+from PyQt6.QtCore import Qt
+
+# Prepopulate login details
+DB_HOST = "localhost"
+DB_PORT = "5432"
+DB_USER = "postgres"
+DB_PASSWORD = "password"
+DB_NAME = "SC3020_Project2"
+
+class Login(QDialog):
+    """
+    Login dialog to authenticate users before accessing the main interface.
+    """
+    def __init__(self):
+        super().__init__()
+
+        # Set up login window title and size
+        self.setWindowTitle("Login")
+        self.setFixedSize(400, 300)
+
+        # Labels and input fields for host, port, user, and password
+        self.host_label = QLabel("Host:")
+        self.host_input = QLineEdit(self)
+        self.host_input.setText(DB_HOST)  # Prepopulate host
+
+        self.port_label = QLabel("Port No:")
+        self.port_input = QLineEdit(self)
+        self.port_input.setText(DB_PORT)  # Prepopulate port
+
+        self.user_label = QLabel("Username:")
+        self.user_input = QLineEdit(self)
+        self.user_input.setText(DB_USER)  # Prepopulate username
+
+        self.pass_label = QLabel("Password:")
+        self.password_input = QLineEdit(self)
+        self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.password_input.setText(DB_PASSWORD)  # Prepopulate password
+
+        # Login button
+        self.login_button = QPushButton("Login", self)
+        self.login_button.clicked.connect(self.login)
+
+
+        # Set up layout
+        layout = QVBoxLayout()
+        layout.addWidget(self.host_label)
+        layout.addWidget(self.host_input)
+        layout.addWidget(self.port_label)
+        layout.addWidget(self.port_input)
+        layout.addWidget(self.user_label)
+        layout.addWidget(self.user_input)
+        layout.addWidget(self.pass_label)
+        layout.addWidget(self.password_input)
+        layout.addWidget(self.login_button)
+
+        self.setLayout(layout)
+
+    def login(self):
+        # Capture login details
+        host = self.host_input.text()
+        port = self.port_input.text()
+        user = self.user_input.text()
+        password = self.password_input.text()
+
+        # Perform login validation (you can customize this to connect to a DB or API)
+        if host and port and user and password:
+            self.accept()  # Close login dialog and proceed with the application
+        else:
+            self.show_error("All fields are required.")
+    
+    def show_error(self, message):
+        error_dialog = Error(message)
+        error_dialog.exec()
+
+
+class Error(QDialog):
+    def __init__(self, msg):
+        super().__init__()
+        self.msg = msg
+        self.setWindowTitle("Error")
+        self.setFixedSize(300, 150)
+
+        # Error label
+        self.error_label = QLabel(self.msg, self)
+        self.error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Acknowledge button
+        self.ack_button = QPushButton("Acknowledge", self)
+        self.ack_button.clicked.connect(self.close)
+
+        # Set up layout
+        layout = QVBoxLayout()
+        layout.addWidget(self.error_label)
+        layout.addWidget(self.ack_button)
+
+        self.setLayout(layout)
+
+
 class QEPInterface(QWidget):
     """
     GUI to interactively visualize and modify Query Execution Plans (QEP).
@@ -34,8 +134,17 @@ class QEPInterface(QWidget):
 
     def __init__(self):
         super().__init__()
+
+        # Display login first
+        self.login_dialog = Login()
+        if self.login_dialog.exec() != QDialog.DialogCode.Accepted:
+            sys.exit()  # Exit if login is unsuccessful
+
+        # Proceed with the rest of the interface setup
         self.setWindowTitle("QEP and AQP What-If Analysis")
-        self.setGeometry(100, 100, 1200, 800)
+        
+        # Set a standard window size after login
+        self.resize(1200, 800)  # Resize the window to 1200x800
         
         # Initialize What-If Analysis Class
         self.whatif = WhatIfAnalysis()
