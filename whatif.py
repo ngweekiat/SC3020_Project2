@@ -76,10 +76,10 @@ class WhatIfAnalysis:
 
 
     def modify_qep(self, original_qep: Dict, modifications: Dict) -> Dict:
+        """
+        Dynamically apply modifications to the QEP based on user inputs.
+        """
         modified_qep = original_qep.copy()
-
-        # Ensure modifications for node 10 are added
-        modifications[10] = {"Scan Type": "Index Scan"}  # Modify node 10 to use Index Scan
 
         # Apply modifications to the QEP recursively
         def apply_changes(node, modifications):
@@ -90,10 +90,15 @@ class WhatIfAnalysis:
                     node["Node Type"] = modification["Scan Type"]
                 if "Node Type" in modification:
                     node["Node Type"] = modification["Node Type"]
+            
+            # Recursively apply changes to child nodes
+            for child in node.get("Plans", []):
+                apply_changes(child, modifications)
 
         # Apply modifications to the QEP's root node
         apply_changes(modified_qep["Plan"], modifications)
         return modified_qep
+
 
 
 
@@ -120,8 +125,11 @@ class WhatIfAnalysis:
 
     def apply_planner_settings(self, modifications: Dict) -> str:
         """
-        Apply planner settings to enforce specific behaviors for the AQP, including scan types.
+        Generate dynamic planner settings based on modifications for each node.
         """
+         # Debugging: Check the received modifications
+        print(f"Modifications received for planner settings: {json.dumps(modifications, indent=4)}")
+    
         settings = []
         for node_id, changes in modifications.items():
             # Apply scan type changes if any
@@ -132,14 +140,13 @@ class WhatIfAnalysis:
                 elif scan_type == "Seq Scan":
                     settings.append("SET enable_seqscan = ON; SET enable_indexscan = OFF;")
 
-            # Example: Apply node type changes (joins)
+            # Apply operator type changes if any
             if "Node Type" in changes:
                 settings.append(self.get_operator_setting(changes["Node Type"]))
 
-        # Combine settings into a single query
-        planner_query = " ".join(settings)
-        print(f"Generated planner settings: {planner_query}")  # Debug print
-        return planner_query
+        return " ".join(settings)
+
+
 
 
 
@@ -165,6 +172,7 @@ class WhatIfAnalysis:
         """
         planner_settings = self.apply_planner_settings(modifications)
         print(f"Applied planner settings for AQP: {planner_settings}")
+
 
         try:
             with self.connect_to_db() as conn:
