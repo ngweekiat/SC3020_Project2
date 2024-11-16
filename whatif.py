@@ -20,6 +20,7 @@ import psycopg2
 import os
 from typing import Dict
 import dotenv
+import json
 
 dotenv.load_dotenv()
 
@@ -48,23 +49,25 @@ class WhatIfAnalysis:
         except psycopg2.OperationalError as e:
             raise ConnectionError(f"Database connection error: {e}")
 
-    def retrieve_qep(self, query: str, modifications: dict = None) -> dict:
+    def retrieve_qep(self, query: str) -> dict:
         """
         Retrieves the Query Execution Plan (QEP) for the given SQL query.
         Optionally applies modifications (e.g., planner settings).
         """
         try:
+            print("what if retrieve_qep" + query)
             with self.connect_to_db() as conn:
                 with conn.cursor() as cursor:
-                    # Apply modifications if provided
-                    if modifications:
-                        planner_settings = self.apply_planner_settings(modifications)
-                        cursor.execute(planner_settings)
+                    print("debugg")
 
                     # Retrieve QEP
+                    print("QUERY DEBUG:" + query)
                     cursor.execute(f"EXPLAIN (FORMAT JSON) {query}")
                     qep = cursor.fetchone()[0][0]
-                    
+
+                    # Debugging: Print retrieved QEP
+
+                    print("DEBUG QEP:", json.dumps(qep, indent=4))
                     return qep
         except psycopg2.Error as e:
             raise RuntimeError(f"Error retrieving QEP: {e}")
@@ -202,6 +205,9 @@ class WhatIfAnalysis:
 
                     # Fetch and return the AQP
                     aqp = cursor.fetchone()[0][0]
+                    # Debugging: Print retrieved AQP
+                    print("DEBUG AQP:", json.dumps(aqp, indent=4))
+
                     return aqp
 
         except psycopg2.Error as e:

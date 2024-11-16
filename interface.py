@@ -15,9 +15,11 @@ Requirements:
 """
 
 import sys
-from PyQt6.QtWidgets import QApplication, QWidget, QScrollArea, QGridLayout, QTreeWidgetItemIterator, QLineEdit, QVBoxLayout, QPushButton, QTextEdit, QLabel, QTreeWidget, QTreeWidgetItem
+from PyQt6.QtWidgets import QApplication, QWidget, QMenu, QScrollArea, QGridLayout, QTreeWidgetItemIterator, QLineEdit, QVBoxLayout, QPushButton, QTextEdit, QLabel, QTreeWidget, QTreeWidgetItem
 from PyQt6.QtCore import Qt
 from whatif import WhatIfAnalysis
+from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QComboBox
 from graphviz import Digraph
 from PyQt6.QtGui import QPixmap
@@ -175,6 +177,7 @@ class QEPInterface(QWidget):
         Generate the QEP for the SQL query entered by the user.
         """
         query = self.query_input.toPlainText().strip()
+
         if not query:
             self.display_message("Error: Please enter a SQL query.")
             return
@@ -189,7 +192,7 @@ class QEPInterface(QWidget):
                 modifications = {"Node Type": node_type}
 
             # Call retrieve_qep with modifications
-            qep = self.whatif.retrieve_qep(query, modifications)
+            qep = self.whatif.retrieve_qep(query)
 
             # Clear and populate the QEP tree view
             self.qep_tree.clear()
