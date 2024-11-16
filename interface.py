@@ -405,23 +405,14 @@ class QEPInterface(QWidget):
             if "Scan" in node_type:  # If it's a scan node
                 force_index = QAction("Force Index Scan", self)
                 force_seq = QAction("Force Sequential Scan", self)
-                force_bitmap_index = QAction("Force Bitmap Index Scan", self)
-                force_bitmap_heap = QAction("Force Bitmap Heap Scan", self)
-                force_index_only = QAction("Force Index Only Scan", self)
 
                 # Connect actions to modify_node
                 force_index.triggered.connect(lambda: self.modify_node(item, "Index Scan"))
                 force_seq.triggered.connect(lambda: self.modify_node(item, "Seq Scan"))
-                force_bitmap_index.triggered.connect(lambda: self.modify_node(item, "Bitmap Index Scan"))
-                force_bitmap_heap.triggered.connect(lambda: self.modify_node(item, "Bitmap Heap Scan"))
-                force_index_only.triggered.connect(lambda: self.modify_node(item, "Index Only Scan"))
 
                 # Add actions for scan types
                 menu.addAction(force_index)
                 menu.addAction(force_seq)
-                menu.addAction(force_bitmap_index)
-                menu.addAction(force_bitmap_heap)
-                menu.addAction(force_index_only)
 
             elif "Join" in node_type:  # If it's a join node
                 force_hash = QAction("Force Hash Join", self)
@@ -440,7 +431,6 @@ class QEPInterface(QWidget):
 
             # Show the menu
             menu.exec(self.qep_tree.viewport().mapToGlobal(position))
-
 
 
 
