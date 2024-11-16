@@ -281,35 +281,55 @@ class QEPInterface(QWidget):
         item = self.qep_tree.itemAt(position)
         if item:
             menu = QMenu()
+            # Join modification options
             force_hash = QAction("Force Hash Join", self)
             force_merge = QAction("Force Merge Join", self)
             force_nestloop = QAction("Force Nested Loop", self)
 
+            # Scan modification options
+            force_index = QAction("Force Index Scan", self)
+            force_seq = QAction("Force Sequential Scan", self)
+
+            # Connect actions to modify_node
             force_hash.triggered.connect(lambda: self.modify_node(item, "Hash Join"))
             force_merge.triggered.connect(lambda: self.modify_node(item, "Merge Join"))
             force_nestloop.triggered.connect(lambda: self.modify_node(item, "Nested Loop"))
+            force_index.triggered.connect(lambda: self.modify_node(item, "Index Scan"))
+            force_seq.triggered.connect(lambda: self.modify_node(item, "Seq Scan"))
 
+            # Add actions to menu
             menu.addAction(force_hash)
             menu.addAction(force_merge)
             menu.addAction(force_nestloop)
+            menu.addAction(force_index)
+            menu.addAction(force_seq)
+
+            # Show the menu
             menu.exec(self.qep_tree.viewport().mapToGlobal(position))
 
 
-    def modify_node(self, item, new_operator):
+
+    def modify_node(self, item, modification_type):
         """
         Modify the selected node in the QEP tree and prepare the modification for backend.
         """
         # Update the UI to reflect the modification
-        item.setText(0, f"{new_operator} (Modified)")
-        
+        item.setText(0, f"{modification_type} (Modified)")
+
         # Capture node information for backend
         node_id = item.data(0, Qt.ItemDataRole.UserRole)  # Assume node ID is stored in UserRole
         if not hasattr(self, 'modified_nodes'):
             self.modified_nodes = {}  # Initialize a dictionary to track modifications
-        self.modified_nodes[node_id] = {"Node Type": new_operator}
+
+        # Determine if the modification is a scan or a join
+        if modification_type in ["Hash Join", "Merge Join", "Nested Loop"]:
+            self.modified_nodes[node_id] = {"Node Type": modification_type}
+        elif modification_type in ["Index Scan", "Seq Scan"]:
+            self.modified_nodes[node_id] = {"Scan Type": modification_type}
 
         # Notify user that the node was modified
-        self.display_message(f"Node {node_id} modified to use {new_operator}")
+        self.display_message(f"Node {node_id} modified to use {modification_type}")
+
 
 
 
@@ -367,6 +387,12 @@ class QEPInterface(QWidget):
             self.populate_tree_widget(qep_root_item, modified_qep["Plan"])
             self.qep_tree.expandAll()
 
+            # Populate the AQP tree view
+            self.aqp_tree.clear()  # Ensure the tree is cleared before populating
+            aqp_root_item = QTreeWidgetItem(self.aqp_tree, ["Root", "Alternative Query Plan"])
+            self.populate_tree_widget(aqp_root_item, aqp["Plan"])  # Use AQP data here
+            self.aqp_tree.expandAll()
+
             # Display the modified SQL query and cost comparison
             modified_query = self.generate_modified_query(query, self.modified_nodes)
             self.sql_output.setPlainText(modified_query)
@@ -378,6 +404,7 @@ class QEPInterface(QWidget):
 
         except Exception as e:
             self.display_message(f"Error modifying QEP: {e}")
+
 
 
 

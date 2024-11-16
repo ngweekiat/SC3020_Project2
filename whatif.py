@@ -89,7 +89,10 @@ class WhatIfAnalysis:
             node_id = node.get("Node ID")  # Ensure Node ID is part of the QEP JSON
             if node_id in modifications:
                 for key, value in modifications[node_id].items():
-                    node[key] = value  # Apply specific modifications
+                    if key == "Scan Type" and node.get("Node Type") in ["Seq Scan", "Index Scan"]:
+                        node["Node Type"] = value  # Apply scan modifications
+                    elif key == "Node Type" and node.get("Node Type") in ["Hash Join", "Merge Join", "Nested Loop"]:
+                        node["Node Type"] = value  # Apply join modifications
 
             # Recursively apply changes to child nodes
             for child in node.get("Plans", []):
@@ -98,6 +101,7 @@ class WhatIfAnalysis:
         # Start applying changes from the root node
         apply_changes(modified_qep["Plan"], modifications)
         return modified_qep
+
 
 
 
@@ -125,7 +129,7 @@ class WhatIfAnalysis:
         """
         settings = []
         for node_id, changes in modifications.items():
-            # Example: Apply node type changes
+            # Example: Apply node type changes (joins)
             if "Node Type" in changes:
                 settings.append(self.get_operator_setting(changes["Node Type"]))
 
@@ -141,9 +145,6 @@ class WhatIfAnalysis:
         planner_query = " ".join(settings)
         print(f"Generated planner settings: {planner_query}")  # Debug print
         return planner_query
-
-
-
 
 
 
@@ -166,31 +167,30 @@ class WhatIfAnalysis:
         Applies planner settings to enforce desired behavior.
         """
         planner_settings = self.apply_planner_settings(modifications)
-        print(f"Applied planner settings for AQP: {planner_settings}")  # Debug print
+        print(f"Applied planner settings for AQP: {planner_settings}")
 
         try:
             with self.connect_to_db() as conn:
                 with conn.cursor() as cursor:
-                    # Log planner settings sent to PostgreSQL
                     if planner_settings:
-                        print(f"Executing planner settings: {planner_settings}")
                         cursor.execute(planner_settings)
 
-                    # Log EXPLAIN command sent to PostgreSQL
-                    explain_query = f"EXPLAIN (FORMAT JSON) {original_sql}"
-                    print(f"Executing EXPLAIN query: {explain_query}")
-                    cursor.execute(explain_query)
-
-                    # Fetch and return the AQP
+                    cursor.execute(f"EXPLAIN (FORMAT JSON) {original_sql}")
                     aqp = cursor.fetchone()[0][0]
-                    # Debugging: Print retrieved AQP
-                    print("DEBUG AQP:", json.dumps(aqp, indent=4))
 
+                    # Assign unique IDs to AQP nodes recursively
+                    def assign_node_ids(node, current_id=1):
+                        node["Node ID"] = current_id
+                        child_id = current_id * 10
+                        for i, child in enumerate(node.get("Plans", [])):
+                            assign_node_ids(child, child_id + i)
+
+                    assign_node_ids(aqp["Plan"])
                     return aqp
 
         except psycopg2.Error as e:
-            print(f"Error retrieving AQP: {e}")  # Debug print
             raise RuntimeError(f"Error retrieving AQP: {e}")
+
 
 
 
