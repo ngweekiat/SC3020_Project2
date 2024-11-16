@@ -139,13 +139,12 @@ class QEPInterface(QWidget):
         self.login_dialog = Login()
         if self.login_dialog.exec() != QDialog.DialogCode.Accepted:
             sys.exit()  # Exit if login is unsuccessful
-
+            
         # Proceed with the rest of the interface setup
         self.setWindowTitle("QEP and AQP What-If Analysis")
         
         # Set a standard window size after login
         self.resize(1200, 800)  # Resize the window to 1200x800
-        
         # Initialize What-If Analysis Class
         self.whatif = WhatIfAnalysis()
 

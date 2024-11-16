@@ -47,11 +47,11 @@ class Project:
 
         # Inject backend dependencies into the GUI
         gui.whatif = self.whatif_analysis  # Set What-If analysis module in GUI
+        gui.preprocessing = self.preprocessing  # Set Preprocessing module for the GUI
         gui.show()
 
         # Start the application loop
         sys.exit(app.exec())
-
 
 if __name__ == "__main__":
     # Instantiate and run the project
