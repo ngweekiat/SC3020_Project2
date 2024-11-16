@@ -75,35 +75,26 @@ class WhatIfAnalysis:
 
 
 
-
     def modify_qep(self, original_qep: Dict, modifications: Dict) -> Dict:
-        """
-        Modifies the QEP based on user-specified changes.
-        """
         modified_qep = original_qep.copy()
 
+        # Ensure modifications for node 10 are added
+        modifications[10] = {"Scan Type": "Index Scan"}  # Modify node 10 to use Index Scan
+
+        # Apply modifications to the QEP recursively
         def apply_changes(node, modifications):
-            """
-            Apply changes to nodes in the QEP recursively.
-            """
-            node_id = node.get("Node ID")  # Ensure Node ID is part of the QEP JSON
+            node_id = node.get("Node ID")
             if node_id in modifications:
-                # Retrieve the latest modification from the history
-                history = modifications[node_id].get("History", [])
-                if history:
-                    latest_modification = history[-1]
-                    if latest_modification in ["Seq Scan", "Index Scan"]:
-                        node["Node Type"] = latest_modification  # Apply scan modifications
-                    elif latest_modification in ["Hash Join", "Merge Join", "Nested Loop"]:
-                        node["Node Type"] = latest_modification  # Apply join modifications
+                modification = modifications[node_id]
+                if "Scan Type" in modification:
+                    node["Node Type"] = modification["Scan Type"]
+                if "Node Type" in modification:
+                    node["Node Type"] = modification["Node Type"]
 
-            # Recursively apply changes to child nodes
-            for child in node.get("Plans", []):
-                apply_changes(child, modifications)
-
-        # Start applying changes from the root node
+        # Apply modifications to the QEP's root node
         apply_changes(modified_qep["Plan"], modifications)
         return modified_qep
+
 
 
 
@@ -133,11 +124,7 @@ class WhatIfAnalysis:
         """
         settings = []
         for node_id, changes in modifications.items():
-            # Example: Apply node type changes (joins)
-            if "Node Type" in changes:
-                settings.append(self.get_operator_setting(changes["Node Type"]))
-
-            # Example: Apply scan type changes
+            # Apply scan type changes if any
             if "Scan Type" in changes:
                 scan_type = changes["Scan Type"]
                 if scan_type == "Index Scan":
@@ -145,10 +132,16 @@ class WhatIfAnalysis:
                 elif scan_type == "Seq Scan":
                     settings.append("SET enable_seqscan = ON; SET enable_indexscan = OFF;")
 
+            # Example: Apply node type changes (joins)
+            if "Node Type" in changes:
+                settings.append(self.get_operator_setting(changes["Node Type"]))
+
         # Combine settings into a single query
         planner_query = " ".join(settings)
         print(f"Generated planner settings: {planner_query}")  # Debug print
         return planner_query
+
+
 
 
 
@@ -177,7 +170,7 @@ class WhatIfAnalysis:
             with self.connect_to_db() as conn:
                 with conn.cursor() as cursor:
                     if planner_settings:
-                        cursor.execute(planner_settings)
+                        cursor.execute(planner_settings)  # Apply planner settings
 
                     cursor.execute(f"EXPLAIN (FORMAT JSON) {original_sql}")
                     aqp = cursor.fetchone()[0][0]
@@ -194,6 +187,7 @@ class WhatIfAnalysis:
 
         except psycopg2.Error as e:
             raise RuntimeError(f"Error retrieving AQP: {e}")
+
 
 
 

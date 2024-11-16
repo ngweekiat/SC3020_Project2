@@ -405,14 +405,23 @@ class QEPInterface(QWidget):
             if "Scan" in node_type:  # If it's a scan node
                 force_index = QAction("Force Index Scan", self)
                 force_seq = QAction("Force Sequential Scan", self)
+                force_bitmap_index = QAction("Force Bitmap Index Scan", self)
+                force_bitmap_heap = QAction("Force Bitmap Heap Scan", self)
+                force_index_only = QAction("Force Index Only Scan", self)
 
                 # Connect actions to modify_node
                 force_index.triggered.connect(lambda: self.modify_node(item, "Index Scan"))
                 force_seq.triggered.connect(lambda: self.modify_node(item, "Seq Scan"))
+                force_bitmap_index.triggered.connect(lambda: self.modify_node(item, "Bitmap Index Scan"))
+                force_bitmap_heap.triggered.connect(lambda: self.modify_node(item, "Bitmap Heap Scan"))
+                force_index_only.triggered.connect(lambda: self.modify_node(item, "Index Only Scan"))
 
                 # Add actions for scan types
                 menu.addAction(force_index)
                 menu.addAction(force_seq)
+                menu.addAction(force_bitmap_index)
+                menu.addAction(force_bitmap_heap)
+                menu.addAction(force_index_only)
 
             elif "Join" in node_type:  # If it's a join node
                 force_hash = QAction("Force Hash Join", self)
@@ -437,25 +446,26 @@ class QEPInterface(QWidget):
 
 
 
+
     def modify_node(self, item, modification_type):
         """
         Modify the selected node in the QEP tree and prepare the modification for backend.
         """
         # Update the UI to reflect the modification
-        item.setText(0, f"{modification_type} (Modified)")
+        item.setText(0, f"{modification_type} (Modified)")  # This updates the tree node UI
 
         # Capture node information for backend
         node_id = item.data(0, Qt.ItemDataRole.UserRole)  # Assume node ID is stored in UserRole
         if not hasattr(self, 'modified_nodes'):
             self.modified_nodes = {}  # Initialize a dictionary to track modifications
 
-        # Determine if the modification is a scan or a join
-        if modification_type in ["Hash Join", "Merge Join", "Nested Loop"]:
-            self.modified_nodes[node_id] = {"Node Type": modification_type}
-        elif modification_type in ["Index Scan", "Seq Scan"]:
-            self.modified_nodes[node_id] = {"Scan Type": modification_type}
+        # Ensure we're correctly modifying the node based on the modification type
+        if modification_type in ["Index Scan", "Seq Scan"]:
+            self.modified_nodes[node_id] = {"Scan Type": modification_type}  # Store the scan modification
+        elif modification_type in ["Hash Join", "Merge Join", "Nested Loop"]:
+            self.modified_nodes[node_id] = {"Node Type": modification_type}  # Store the join modification
 
-        # Highlight the modified node in red
+        # Highlight the modified node in red for emphasis
         item.setForeground(1, QColor(255, 0, 0))  # Set the color of the Node Type column to red
         item.setForeground(3, QColor(255, 0, 0))  # Set the color of the Details column to red
         
@@ -470,6 +480,7 @@ class QEPInterface(QWidget):
 
         # Notify user that the node was modified
         self.display_message(f"Node {node_id} modified to use {modification_type}")
+
 
 
 
