@@ -391,36 +391,47 @@ class QEPInterface(QWidget):
 
     def open_context_menu(self, position):
         """
-        Show context menu to allow node-specific modifications.
+        Show context menu to allow node-specific modifications based on node type.
         """
         item = self.qep_tree.itemAt(position)
         if item:
+            # Create the context menu
             menu = QMenu()
-            # Join modification options
-            force_hash = QAction("Force Hash Join", self)
-            force_merge = QAction("Force Merge Join", self)
-            force_nestloop = QAction("Force Nested Loop", self)
 
-            # Scan modification options
-            force_index = QAction("Force Index Scan", self)
-            force_seq = QAction("Force Sequential Scan", self)
+            # Get the node type from the selected item
+            node_type = item.text(1)  # Node Type is in the second column
 
-            # Connect actions to modify_node
-            force_hash.triggered.connect(lambda: self.modify_node(item, "Hash Join"))
-            force_merge.triggered.connect(lambda: self.modify_node(item, "Merge Join"))
-            force_nestloop.triggered.connect(lambda: self.modify_node(item, "Nested Loop"))
-            force_index.triggered.connect(lambda: self.modify_node(item, "Index Scan"))
-            force_seq.triggered.connect(lambda: self.modify_node(item, "Seq Scan"))
+            # Depending on the node type, offer different modification options
+            if "Scan" in node_type:  # If it's a scan node
+                force_index = QAction("Force Index Scan", self)
+                force_seq = QAction("Force Sequential Scan", self)
 
-            # Add actions to menu
-            menu.addAction(force_hash)
-            menu.addAction(force_merge)
-            menu.addAction(force_nestloop)
-            menu.addAction(force_index)
-            menu.addAction(force_seq)
+                # Connect actions to modify_node
+                force_index.triggered.connect(lambda: self.modify_node(item, "Index Scan"))
+                force_seq.triggered.connect(lambda: self.modify_node(item, "Seq Scan"))
+
+                # Add actions for scan types
+                menu.addAction(force_index)
+                menu.addAction(force_seq)
+
+            elif "Join" in node_type:  # If it's a join node
+                force_hash = QAction("Force Hash Join", self)
+                force_merge = QAction("Force Merge Join", self)
+                force_nestloop = QAction("Force Nested Loop", self)
+
+                # Connect actions to modify_node
+                force_hash.triggered.connect(lambda: self.modify_node(item, "Hash Join"))
+                force_merge.triggered.connect(lambda: self.modify_node(item, "Merge Join"))
+                force_nestloop.triggered.connect(lambda: self.modify_node(item, "Nested Loop"))
+
+                # Add actions for join types
+                menu.addAction(force_hash)
+                menu.addAction(force_merge)
+                menu.addAction(force_nestloop)
 
             # Show the menu
             menu.exec(self.qep_tree.viewport().mapToGlobal(position))
+
 
 
 
