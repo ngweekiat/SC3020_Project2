@@ -21,6 +21,7 @@ from whatif import WhatIfAnalysis
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QComboBox
+from PyQt6.QtGui import QColor, QFont
 from graphviz import Digraph
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene
@@ -182,7 +183,6 @@ class QEPInterface(QWidget):
 
 
 
-
     def generate_qep(self):
         """
         Generate the QEP for the SQL query entered by the user.
@@ -311,30 +311,41 @@ class QEPInterface(QWidget):
 
 
 
+
+
     def modify_node(self, item, modification_type):
         """
         Modify the selected node in the QEP tree and prepare the modification for backend.
         """
-        # Retrieve node ID (unchanged)
+        # Update the UI to reflect the modification
+        item.setText(0, f"{modification_type} (Modified)")
+
+        # Capture node information for backend
         node_id = item.data(0, Qt.ItemDataRole.UserRole)  # Assume node ID is stored in UserRole
         if not hasattr(self, 'modified_nodes'):
             self.modified_nodes = {}  # Initialize a dictionary to track modifications
 
-        # Add or update modifications for this node
-        if node_id not in self.modified_nodes:
-            self.modified_nodes[node_id] = {"History": []}
-        self.modified_nodes[node_id]["History"].append(modification_type)
+        # Determine if the modification is a scan or a join
+        if modification_type in ["Hash Join", "Merge Join", "Nested Loop"]:
+            self.modified_nodes[node_id] = {"Node Type": modification_type}
+        elif modification_type in ["Index Scan", "Seq Scan"]:
+            self.modified_nodes[node_id] = {"Scan Type": modification_type}
 
-        # Update only the Node Type column to reflect the modification
-        item.setText(1, f"{modification_type} (Modified)")
+        # Highlight the modified node in red
+        item.setForeground(1, QColor(255, 0, 0))  # Set the color of the Node Type column to red
+        item.setForeground(3, QColor(255, 0, 0))  # Set the color of the Details column to red
+        
+        # Optionally, make the font bold for further emphasis
+        font = item.font(1)
+        font.setBold(True)
+        item.setFont(1, font)
 
-        # Optionally, add modification history to the Details column
-        history_text = ", ".join(self.modified_nodes[node_id]["History"])
-        item.setText(3, f"History: {history_text}")
+        font = item.font(3)
+        font.setBold(True)
+        item.setFont(3, font)
 
-        # Notify the user of the modification
+        # Notify user that the node was modified
         self.display_message(f"Node {node_id} modified to use {modification_type}")
-
 
 
 
