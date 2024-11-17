@@ -126,13 +126,13 @@ class QEPInterface(QWidget):
         # Display login first
         self.login_dialog = Login()
         if self.login_dialog.exec() != QDialog.DialogCode.Accepted:
-            sys.exit()  # Exit if login is unsuccessful
+            sys.exit()  
             
         # Proceed with the rest of the interface setup
         self.setWindowTitle("QEP and AQP What-If Analysis")
         
         # Set a standard window size after login
-        self.resize(1200, 800)  # Resize the window to 1200x800
+        self.resize(1200, 800) 
         # Initialize What-If Analysis Class
         self.whatif = WhatIfAnalysis()
 
@@ -248,7 +248,7 @@ class QEPInterface(QWidget):
         # Extract Node Type, Total Cost, and Node ID
         node_type = plan.get("Node Type", "Unknown")
         total_cost = plan.get("Total Cost", "N/A")
-        node_id = plan.get("Node ID", "N/A")  # Ensure Node ID is part of the JSON structure
+        node_id = plan.get("Node ID", "N/A") 
 
         # Format details for additional attributes
         details = ", ".join(f"{key}: {value}" for key, value in plan.items()
@@ -273,15 +273,15 @@ class QEPInterface(QWidget):
             return
 
         try:
-            self.modified_nodes = {}  # Reset any previous modifications
-            self.qep_tree.clear()  # Clear previous QEP tree view
-            self.aqp_tree.clear()  # Clear previous AQP tree view
-            self.qep_graph_scene.clear()  # Clear the previous QEP graph
-            self.aqp_graph_scene.clear()  # Clear the previous AQP graph
-            
+            self.modified_nodes = {} 
+            self.qep_tree.clear()
+            self.aqp_tree.clear() 
+            self.qep_graph_scene.clear()
+            self.aqp_graph_scene.clear()
+
             # Clear the text output areas
-            self.sql_output.clear()  # Clear the modified SQL query output
-            self.cost_comparison.clear()  # Clear the cost comparison output
+            self.sql_output.clear()  
+            self.cost_comparison.clear()  
 
             # Retrieve the QEP for the original query
             qep = self.whatif.retrieve_qep(query)
@@ -305,10 +305,10 @@ class QEPInterface(QWidget):
         Render the QEP as a graphical tree using Graphviz and display it in the GUI.
         """
         graph = Digraph(format="png")
-        self.add_plan_to_graph(graph, plan)  # Helper function to populate the graph
+        self.add_plan_to_graph(graph, plan)  
 
         graph_path = "qep_graph"
-        graph.render(graph_path, cleanup=True)  # Save the graph as an image
+        graph.render(graph_path, cleanup=True)  
 
         # Display the graph in the QGraphicsView
         pixmap = QPixmap(f"{graph_path}.png")
@@ -321,10 +321,10 @@ class QEPInterface(QWidget):
         Render the AQP.
         """
         graph = Digraph(format="png")
-        self.add_plan_to_graph(graph, plan)  # Reuse the helper function from QEP rendering
+        self.add_plan_to_graph(graph, plan)  
 
         graph_path = "aqp_graph"
-        graph.render(graph_path, cleanup=True)  # Save the graph as an image
+        graph.render(graph_path, cleanup=True)  
 
         # Display the graph in the QGraphicsView
         pixmap = QPixmap(f"{graph_path}.png")
@@ -339,7 +339,7 @@ class QEPInterface(QWidget):
         """
         # Use the node's actual ID from the QEP/AQP structure for consistency
         node_label = f"Node {node.get('Node ID', node_id)}: {node.get('Node Type', 'Unknown')}\nCost: {node.get('Total Cost', 'N/A')}"
-        current_id = str(node.get('Node ID', node_id))  # Ensure we use the actual Node ID from the plan
+        current_id = str(node.get('Node ID', node_id))  
 
         # Create Graphviz node
         graph.node(current_id, label=node_label)
@@ -368,7 +368,7 @@ class QEPInterface(QWidget):
             menu = QMenu()
 
             # Get the node type from the selected item
-            node_type = item.text(1)  # Node Type is in the second column
+            node_type = item.text(1)  
 
             # Depending on the node type, offer different modification options
             if "Scan" in node_type:  # If it's a scan node
@@ -413,19 +413,23 @@ class QEPInterface(QWidget):
         # Capture node information for backend
         node_id = item.data(0, Qt.ItemDataRole.UserRole)  # Assume node ID is stored in UserRole
         if not hasattr(self, 'modified_nodes'):
-            self.modified_nodes = {}  # Initialize a dictionary to track modifications
-
+            # Initialize a dictionary to track modifications
+            self.modified_nodes = {}  
         # Ensure we're correctly modifying the node based on the modification type
         if modification_type in ["Index Scan", "Seq Scan"]:
-            self.modified_nodes[node_id] = {"Scan Type": modification_type}  # Store the scan modification
+            # Store the scan modification
+            self.modified_nodes[node_id] = {"Scan Type": modification_type}  
         elif modification_type in ["Hash Join", "Merge Join", "Nested Loop"]:
-            self.modified_nodes[node_id] = {"Node Type": modification_type}  # Store the join modification
+            # Store the join modification
+            self.modified_nodes[node_id] = {"Node Type": modification_type}  
 
         # Highlight the modified node in red for emphasis
-        item.setForeground(1, QColor(255, 0, 0))  # Set the color of the Node Type column to red
-        item.setForeground(3, QColor(255, 0, 0))  # Set the color of the Details column to red
+        #Set red
+        item.setForeground(1, QColor(255, 0, 0))  
+        #Set red
+        item.setForeground(3, QColor(255, 0, 0))  
         
-        # Optionally, make the font bold for further emphasis
+        #Bold font
         font = item.font(1)
         font.setBold(True)
         item.setFont(1, font)
@@ -438,14 +442,6 @@ class QEPInterface(QWidget):
         self.display_message(f"Node {node_id} modified to use {modification_type}")
 
     def generate_modified_query(self, original_query, modifications):
-        """
-        Generate a modified SQL query based on user-specified modifications.
-        This version displays the modifications in a human-readable format.
-
-        :param original_query: The original SQL query.
-        :param modifications: The modifications applied to the query plan.
-        :return: The modified SQL query in a natural language format.
-        """
         modified_query = f"{original_query}\n-- Modified with:"
         
         for node_id, changes in modifications.items():
@@ -460,15 +456,11 @@ class QEPInterface(QWidget):
         return modified_query
 
     def display_message(self, message):
-        """
-        Display error or status messages in the cost comparison panel.
-        """
+        #Display error mesages
         self.cost_comparison.setPlainText(message)
 
     def modify_qep(self):
-        """
-        Perform the what-if analysis by modifying the QEP and generating the AQP.
-        """
+        #Perform what if analysis
         query = self.query_input.toPlainText().strip()
         if not query:
             self.display_message("Error: Please enter a SQL query.")
@@ -501,7 +493,7 @@ class QEPInterface(QWidget):
             # Populate the AQP tree view
             self.aqp_tree.clear()  # Ensure the tree is cleared before populating
             aqp_root_item = QTreeWidgetItem(self.aqp_tree, ["Root", "Alternative Query Plan"])
-            self.populate_tree_widget(aqp_root_item, aqp["Plan"])  # Use AQP data here
+            self.populate_tree_widget(aqp_root_item, aqp["Plan"]) 
             self.aqp_tree.expandAll()
 
             # Display the modified SQL query and cost comparison
@@ -515,9 +507,3 @@ class QEPInterface(QWidget):
 
         except Exception as e:
             self.display_message(f"Error modifying QEP: {e}")
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = QEPInterface()
-    window.show()
-    sys.exit(app.exec())
