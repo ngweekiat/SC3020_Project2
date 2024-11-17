@@ -38,9 +38,7 @@ class Preprocessing:
             return False
 
     def validate_tpch_schema(self) -> bool:
-        """
-        Validate that the required TPC-H dataset is loaded and available for querying.
-        """
+        # Validate that the required TPC-H dataset is loaded and available for querying.
         required_tables = [
             "customer", "lineitem", "nation", "orders", "part",
             "partsupp", "region", "supplier"
@@ -69,9 +67,7 @@ class Preprocessing:
             raise RuntimeError(f"Error validating TPC-H schema: {e}")
 
     def format_qep_for_visualization(self, qep: Dict) -> Dict:
-        """
-        Format QEP data into a structured dictionary suitable for visualization.
-        """
+        # Format QEP data into a structured dictionary suitable for visualization.
         def traverse_plan(plan):
             formatted = {
                 "Node Type": plan.get("Node Type", "Unknown"),
@@ -95,9 +91,7 @@ class Preprocessing:
         return traverse_plan(qep["Plan"])
 
     def preprocess_qep(self, query: str) -> Dict:
-        """
-        Retrieve and preprocess the QEP for visualization.
-        """
+        # Retrieve and preprocess the QEP for visualization.
         try:
             conn = self.connect_to_db()
             cursor = conn.cursor()

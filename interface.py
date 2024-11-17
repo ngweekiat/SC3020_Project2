@@ -28,9 +28,7 @@ DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
 DB_NAME = os.getenv("DB_NAME", "tpch")
 
 class Login(QDialog):
-    """
-    Login dialog to authenticate users before accessing the main interface.
-    """
+    # Login interface for database
     def __init__(self):
         super().__init__()
 
@@ -118,9 +116,7 @@ class Error(QDialog):
 
 
 class QEPInterface(QWidget):
-    """
-    GUI to visualize and modify Query Execution Plans (QEP).
-    """
+    # GUI to visualize and modify Query Execution Plans (QEP).
     def __init__(self):
         super().__init__()
 
@@ -240,12 +236,7 @@ class QEPInterface(QWidget):
         self.setup_tree_interaction()
 
     def populate_tree_widget(self, parent_item, plan):
-        """
-        Recursively populate a QTreeWidget with the QEP or AQP structure.
-
-        :param parent_item: QTreeWidgetItem to which the current node will be added.
-        :param plan: Dictionary representing the QEP or AQP node.
-        """
+        # Recursively populate a QTreeWidget with the QEP or AQP structure.
         # Extract Node Type, Total Cost, and Node ID
         node_type = plan.get("Node Type", "Unknown")
         total_cost = plan.get("Total Cost", "N/A")
@@ -302,9 +293,7 @@ class QEPInterface(QWidget):
             self.display_message(f"Error generating QEP: {e}")
 
     def render_qep_graph(self, plan):
-        """
-        Render the QEP as a graphical tree using Graphviz and display it in the GUI.
-        """
+        # Render the QEP
         graph = Digraph(format="png")
         self.add_plan_to_graph(graph, plan)  
 
@@ -318,9 +307,7 @@ class QEPInterface(QWidget):
         self.qep_graph_view.setScene(self.qep_graph_scene)
 
     def render_aqp_graph(self, plan):
-        """
-        Render the AQP.
-        """
+        # Render the AQP.
         graph = Digraph(format="png")
         self.add_plan_to_graph(graph, plan)  
 
@@ -334,10 +321,8 @@ class QEPInterface(QWidget):
         self.aqp_graph_view.setScene(self.aqp_graph_scene)
 
     def add_plan_to_graph(self, graph, node, parent_id=None, node_id=0):
-        """
-        Recursively add nodes to the Graphviz graph for the QEP.
-        Ensures that the Node ID is consistent in both the graph and the tree.
-        """
+        # Recursively add nodes to the Graphviz graph for the QEP.
+        # Ensures that the Node ID is consistent in both the graph and the tree.
         # Use the node's actual ID from the QEP/AQP structure for consistency
         node_label = f"Node {node.get('Node ID', node_id)}: {node.get('Node Type', 'Unknown')}\nCost: {node.get('Total Cost', 'N/A')}"
         current_id = str(node.get('Node ID', node_id))  
@@ -353,16 +338,12 @@ class QEPInterface(QWidget):
             self.add_plan_to_graph(graph, child, current_id, node_id=(node_id * 10 + i + 1))
 
     def setup_tree_interaction(self):
-        """
-        Add interactivity to the QEP Tree (e.g., right-click to modify nodes).
-        """
+        # Add right clicking to the QEP Tree (e.g., right-click to modify nodes).
         self.qep_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.qep_tree.customContextMenuRequested.connect(self.open_context_menu)
 
     def open_context_menu(self, position):
-        """
-        Show context menu to allow node-specific modifications based on node type.
-        """
+        # Show node-specific modifications based on node type.
         item = self.qep_tree.itemAt(position)
         if item:
             # Create the context menu
@@ -404,10 +385,8 @@ class QEPInterface(QWidget):
             # Show the menu
             menu.exec(self.qep_tree.viewport().mapToGlobal(position))
 
-    def modify_node(self, item, modification_type):
-        """
-        Modify the selected node in the QEP tree and prepare the modification for backend.
-        """
+    def modify_node(self, item, modification_type):    
+        # Modify the selected node in the QEP tree and prepare the modification for backend.
         # Update the UI to reflect the modification
         item.setText(0, f"{modification_type} (Modified)")  # This updates the tree node UI
 
