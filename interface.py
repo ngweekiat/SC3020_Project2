@@ -30,13 +30,17 @@ from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene
 
 from PyQt6.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QVBoxLayout
 from PyQt6.QtCore import Qt
+import dotenv
+import os
+
+dotenv.load_dotenv()
 
 # Prepopulate login details
-DB_HOST = "localhost"
-DB_PORT = "5432"
-DB_USER = "postgres"
-DB_PASSWORD = "password"
-DB_NAME = "SC3020_Project2"
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "5432")
+DB_USER = os.getenv("DB_USER", "postgres")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
+DB_NAME = os.getenv("DB_NAME", "tpch")
 
 class Login(QDialog):
     """
@@ -405,6 +409,8 @@ class QEPInterface(QWidget):
             if "Scan" in node_type:  # If it's a scan node
                 force_index = QAction("Force Index Scan", self)
                 force_seq = QAction("Force Sequential Scan", self)
+                # force_bitmap = QAction("Force Bitmap Index Scan", self)
+                # not implmenting force bitmap index scan
 
                 # Connect actions to modify_node
                 force_index.triggered.connect(lambda: self.modify_node(item, "Index Scan"))
@@ -414,7 +420,7 @@ class QEPInterface(QWidget):
                 menu.addAction(force_index)
                 menu.addAction(force_seq)
 
-            elif "Join" in node_type:  # If it's a join node
+            elif "Join" or "Nested" in node_type:  # If it's a join node
                 force_hash = QAction("Force Hash Join", self)
                 force_merge = QAction("Force Merge Join", self)
                 force_nestloop = QAction("Force Nested Loop", self)

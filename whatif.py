@@ -21,6 +21,7 @@ import os
 from typing import Dict
 import dotenv
 import json
+from decimal import Decimal, getcontext
 
 dotenv.load_dotenv()
 
@@ -136,9 +137,9 @@ class WhatIfAnalysis:
             if "Scan Type" in changes:
                 scan_type = changes["Scan Type"]
                 if scan_type == "Index Scan":
-                    settings.append("SET enable_seqscan = OFF; SET enable_indexscan = ON;")
+                    settings.append("SET enable_seqscan = OFF; SET enable_indexscan = ON; SET enable_bitmapscan = OFF;")
                 elif scan_type == "Seq Scan":
-                    settings.append("SET enable_seqscan = ON; SET enable_indexscan = OFF;")
+                    settings.append("SET enable_seqscan = ON; SET enable_indexscan = OFF; SET enable_bitmapscan = OFF;")
 
             # Apply operator type changes if any
             if "Node Type" in changes:
@@ -157,8 +158,8 @@ class WhatIfAnalysis:
         Map operator types to PostgreSQL settings.
         """
         mapping = {
-            "Merge Join": "SET enable_hashjoin = OFF; SET enable_mergejoin = ON;",
-            "Hash Join": "SET enable_mergejoin = OFF; SET enable_hashjoin = ON;",
+            "Merge Join": "SET enable_mergejoin = ON; SET enable_hashjoin = OFF; SET enable_nestloop = OFF;",
+            "Hash Join": "SET enable_mergejoin = OFF; SET enable_hashjoin = ON; SET enable_nestloop = OFF;",
             "Nested Loop": "SET enable_mergejoin = OFF; SET enable_hashjoin = OFF; SET enable_nestloop = ON;"
         }
         return mapping.get(operator_type, "")
@@ -209,8 +210,10 @@ class WhatIfAnalysis:
         print("QEP COMPARE COST DEBUG: " + json.dumps(qep, indent=4))  # Pretty-print with indentation
         print("AQP COMPARE COST DEBUG: " + json.dumps(aqp, indent=4))  # Pretty-print with indentation
 
+        # set significant figures for decimal below
         original_cost = float(qep["Plan"].get("Total Cost", -1))
         modified_cost = float(aqp["Plan"].get("Total Cost", -1))
+        cost_difference = round(Decimal(modified_cost - original_cost), 2 )
 
         # Ensure original cost is valid
         if original_cost == -1 or modified_cost == -1:
@@ -219,11 +222,12 @@ class WhatIfAnalysis:
         # Debugging prints
         print(f"Original QEP Cost: {original_cost}")
         print(f"Modified AQP Cost: {modified_cost}")
+        print(f"Cost difference: {cost_difference}")
 
         return {
             "Original Cost": original_cost,
             "Modified Cost": modified_cost,
-            "Cost Difference": modified_cost - original_cost
+            "Cost Difference": cost_difference
         }
 
 
