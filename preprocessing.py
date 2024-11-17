@@ -15,9 +15,6 @@ Requirements:
         - Data extraction from PostgreSQL.
         - Preparing data for visualization in the GUI.
 """
-
-
-
 import psycopg2
 import os
 from typing import List, Dict, Optional
@@ -37,9 +34,6 @@ class Preprocessing:
         }
 
     def connect_to_db(self, database: Optional[str] = None):
-        """
-        Establish a connection to the PostgreSQL database.
-        """
         params = self.conn_params.copy()
         if database:
             params["database"] = database
@@ -51,9 +45,6 @@ class Preprocessing:
             raise ConnectionError(f"Error connecting to the database: {e}")
 
     def validate_query(self, query: str) -> bool:
-        """
-        Validate the user-supplied SQL query syntax by attempting a dry run.
-        """
         try:
             conn = self.connect_to_db()
             cursor = conn.cursor()
@@ -136,9 +127,6 @@ class Preprocessing:
             raise RuntimeError(f"Error retrieving or formatting QEP: {e}")
 
     def preprocess_for_gui(self, query: str) -> Dict:
-        """
-        Prepare data for GUI visualization and display.
-        """
         if not self.validate_query(query):
             raise ValueError("Invalid SQL query provided.")
 
@@ -147,26 +135,26 @@ class Preprocessing:
 
 
 # Utility functions
-def validate_and_load_tpch():
-    """
-    Ensure the TPC-H dataset is available and valid.
-    """
-    preprocessing = Preprocessing()
-    if preprocessing.validate_tpch_schema():
-        print("TPC-H schema validation successful.")
-    else:
-        print("TPC-H schema validation failed. Please check the dataset.")
+# def validate_and_load_tpch():
+#     """
+#     Ensure the TPC-H dataset is available and valid.
+#     """
+#     preprocessing = Preprocessing()
+#     if preprocessing.validate_tpch_schema():
+#         print("TPC-H schema validation successful.")
+#     else:
+#         print("TPC-H schema validation failed. Please check the dataset.")
 
-def preprocess_query_for_gui(query: str):
-    """
-    Preprocess the query and prepare it for GUI visualization.
-    """
-    preprocessing = Preprocessing()
-    if preprocessing.validate_query(query):
-        print("Query validated successfully.")
-        qep = preprocessing.preprocess_for_gui(query)
-        print("Preprocessed QEP:", qep)
-    else:
-        print("Query validation failed.")
+# def preprocess_query_for_gui(query: str):
+#     """
+#     Preprocess the query and prepare it for GUI visualization.
+#     """
+#     preprocessing = Preprocessing()
+#     if preprocessing.validate_query(query):
+#         print("Query validated successfully.")
+#         qep = preprocessing.preprocess_for_gui(query)
+#         print("Preprocessed QEP:", qep)
+#     else:
+#         print("Query validation failed.")
 
 

@@ -1,10 +1,3 @@
-"""
-project.py
-----------
-Main entry point for the project.
-Handles the initialization and integration of the GUI, preprocessing, and What-If analysis modules.
-"""
-
 import sys
 from PyQt6.QtWidgets import QApplication
 from interface import QEPInterface
@@ -12,10 +5,6 @@ from preprocessing import Preprocessing
 from whatif import WhatIfAnalysis
 
 class Project:
-    """
-    Main class to orchestrate the interaction between the GUI, preprocessing, and What-If analysis modules.
-    """
-
     def __init__(self):
         # Initialize the preprocessing and what-if analysis modules
         self.preprocessing = Preprocessing()
@@ -26,7 +15,7 @@ class Project:
 
     def validate_tpch_schema(self):
         """
-        Validate the TPC-H schema and ensure the database is correctly set up.
+        Ensure that the database is correctly set up.
         """
         print("Validating TPC-H schema...")
         if self.preprocessing.validate_tpch_schema():
@@ -37,7 +26,7 @@ class Project:
 
     def run(self):
         """
-        Launch the GUI and integrate it with backend functionality.
+        Launch the GUI.
         """
         # Create the PyQt application
         app = QApplication(sys.argv)

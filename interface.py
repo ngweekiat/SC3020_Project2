@@ -133,9 +133,8 @@ class Error(QDialog):
 
 class QEPInterface(QWidget):
     """
-    GUI to interactively visualize and modify Query Execution Plans (QEP).
+    GUI to visualize and modify Query Execution Plans (QEP).
     """
-
     def __init__(self):
         super().__init__()
 
@@ -224,7 +223,6 @@ class QEPInterface(QWidget):
         self.grid_layout.addWidget(self.aqp_graph_label, 8, 2, 1, 2)
         self.grid_layout.addWidget(self.aqp_graph_view, 9, 2, 1, 2)
 
-
         # Section 5: Tree Views
         self.qep_tree_label = QLabel("QEP Tree View:")
         self.qep_tree = QTreeWidget(self)
@@ -255,10 +253,6 @@ class QEPInterface(QWidget):
         # Allow right clicking
         self.setup_tree_interaction()
 
-
-
-
-
     def populate_tree_widget(self, parent_item, plan):
         """
         Recursively populate a QTreeWidget with the QEP or AQP structure.
@@ -286,14 +280,7 @@ class QEPInterface(QWidget):
         for child_plan in plan.get("Plans", []):
             self.populate_tree_widget(current_item, child_plan)
 
-
-
-
-
     def generate_qep(self):
-        """
-        Generate the QEP for the SQL query entered by the user.
-        """
         query = self.query_input.toPlainText().strip()
 
         if not query:
@@ -301,7 +288,6 @@ class QEPInterface(QWidget):
             return
 
         try:
-            # Reset previous modifications and visualizations
             self.modified_nodes = {}  # Reset any previous modifications
             self.qep_tree.clear()  # Clear previous QEP tree view
             self.aqp_tree.clear()  # Clear previous AQP tree view
@@ -329,8 +315,6 @@ class QEPInterface(QWidget):
         except Exception as e:
             self.display_message(f"Error generating QEP: {e}")
 
-
-
     def render_qep_graph(self, plan):
         """
         Render the QEP as a graphical tree using Graphviz and display it in the GUI.
@@ -349,7 +333,7 @@ class QEPInterface(QWidget):
 
     def render_aqp_graph(self, plan):
         """
-        Render the AQP as a graphical tree using Graphviz and display it in the GUI.
+        Render the AQP.
         """
         graph = Digraph(format="png")
         self.add_plan_to_graph(graph, plan)  # Reuse the helper function from QEP rendering
@@ -362,7 +346,6 @@ class QEPInterface(QWidget):
         self.aqp_graph_scene.clear()
         self.aqp_graph_scene.addPixmap(pixmap)
         self.aqp_graph_view.setScene(self.aqp_graph_scene)
-
 
     def add_plan_to_graph(self, graph, node, parent_id=None, node_id=0):
         """
@@ -383,15 +366,12 @@ class QEPInterface(QWidget):
         for i, child in enumerate(node.get("Plans", [])):
             self.add_plan_to_graph(graph, child, current_id, node_id=(node_id * 10 + i + 1))
 
-
-
     def setup_tree_interaction(self):
         """
         Add interactivity to the QEP Tree (e.g., right-click to modify nodes).
         """
         self.qep_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.qep_tree.customContextMenuRequested.connect(self.open_context_menu)
-
 
     def open_context_menu(self, position):
         """
@@ -438,11 +418,6 @@ class QEPInterface(QWidget):
             # Show the menu
             menu.exec(self.qep_tree.viewport().mapToGlobal(position))
 
-
-
-
-
-
     def modify_node(self, item, modification_type):
         """
         Modify the selected node in the QEP tree and prepare the modification for backend.
@@ -477,11 +452,6 @@ class QEPInterface(QWidget):
         # Notify user that the node was modified
         self.display_message(f"Node {node_id} modified to use {modification_type}")
 
-
-
-
-
-
     def generate_modified_query(self, original_query, modifications):
         """
         Generate a modified SQL query based on user-specified modifications.
@@ -504,13 +474,11 @@ class QEPInterface(QWidget):
         
         return modified_query
 
-
     def display_message(self, message):
         """
         Display error or status messages in the cost comparison panel.
         """
         self.cost_comparison.setPlainText(message)
-
 
     def modify_qep(self):
         """
@@ -562,13 +530,6 @@ class QEPInterface(QWidget):
 
         except Exception as e:
             self.display_message(f"Error modifying QEP: {e}")
-
-
-
-
-
-
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

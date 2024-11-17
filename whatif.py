@@ -1,21 +1,3 @@
-"""
-whatif.py
-----------
-Purpose:
-    - Handles the logic for generating modified SQL queries and their corresponding AQPs (Alternative Query Plans) based on what-if questions.
-
-Improvements:
-    1. Supports more types of modifications (e.g., scan type, aggregation).
-    2. Allows node-specific modifications (targeting specific nodes based on criteria).
-    3. Enhances flexibility for dynamic user-specified changes.
-    4. Handles a wide variety of queries and database schemas.
-
-Requirements:
-    - Accept original SQL query and user-specified modifications.
-    - Generate the modified QEP (AQP) using PostgreSQL's planner method configuration.
-    - Compare the estimated costs of the QEP and AQP.
-"""
-
 import psycopg2
 import os
 from typing import Dict
@@ -24,7 +6,6 @@ import json
 from decimal import Decimal, getcontext
 
 dotenv.load_dotenv()
-
 
 class WhatIfAnalysis:
     """
@@ -42,9 +23,6 @@ class WhatIfAnalysis:
         }
 
     def connect_to_db(self):
-        """
-        Establishes a connection to the PostgreSQL database.
-        """
         try:
             return psycopg2.connect(**self.conn_params)
         except psycopg2.OperationalError as e:
@@ -73,9 +51,6 @@ class WhatIfAnalysis:
         except psycopg2.Error as e:
             raise RuntimeError(f"Error retrieving QEP: {e}")
 
-
-
-
     def modify_qep(self, original_qep: Dict, modifications: Dict) -> Dict:
         """
         Dynamically apply modifications to the QEP based on user inputs.
@@ -100,19 +75,7 @@ class WhatIfAnalysis:
         apply_changes(modified_qep["Plan"], modifications)
         return modified_qep
 
-
-
-
-
-
-
-
-
-
     def logical_transformations(self, query: str, modifications: Dict) -> str:
-        """
-        Apply transformations to the query based on logical heuristics.
-        """
         transformed_query = query
         if "Push Selections" in modifications:
             # Example: Push selection conditions closer to base tables
@@ -122,13 +85,7 @@ class WhatIfAnalysis:
             transformed_query = self.reorder_joins(query, modifications["Join Order"])
         return transformed_query
 
-
-
     def apply_planner_settings(self, modifications: Dict) -> str:
-        """
-        Generate dynamic planner settings based on modifications for each node.
-        """
-         # Debugging: Check the received modifications
         print(f"Modifications received for planner settings: {json.dumps(modifications, indent=4)}")
     
         settings = []
@@ -146,12 +103,6 @@ class WhatIfAnalysis:
                 settings.append(self.get_operator_setting(changes["Node Type"]))
 
         return " ".join(settings)
-
-
-
-
-
-
 
     def get_operator_setting(self, operator_type: str) -> str:
         """
@@ -173,7 +124,6 @@ class WhatIfAnalysis:
         """
         planner_settings = self.apply_planner_settings(modifications)
         print(f"Applied planner settings for AQP: {planner_settings}")
-
 
         try:
             with self.connect_to_db() as conn:
@@ -197,14 +147,9 @@ class WhatIfAnalysis:
         except psycopg2.Error as e:
             raise RuntimeError(f"Error retrieving AQP: {e}")
 
-
-
-
-
-
     def compare_costs(self, qep: Dict, aqp: Dict) -> Dict:
         """
-        Compare costs of the QEP and AQP with a detailed breakdown.
+        Compare costs of the QEP and AQP.
         """
         import json
         print("QEP COMPARE COST DEBUG: " + json.dumps(qep, indent=4))  # Pretty-print with indentation
@@ -229,5 +174,3 @@ class WhatIfAnalysis:
             "Modified Cost": modified_cost,
             "Cost Difference": cost_difference
         }
-
-
