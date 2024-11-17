@@ -7,9 +7,9 @@
 pip install -r requirements.txt
 ```
 3. Download and Install Graphviz:
-  1. Step 1 : Go to the [Graphviz download page](https://graphviz.org/download/) and download the installer for your operating system. 
+  * Step 1 : Go to the [Graphviz download page](https://graphviz.org/download/) and download the installer for your operating system. 
 Run the installer and complete the installation. Make note of the installation directory, which is typically something like: C:\Program Files\Graphviz
-  2. Step 2: Add Graphviz to the System PATH
+  * Step 2: Add Graphviz to the System PATH
     * After installing Graphviz, you need to add its bin directory to your system PATH so that dot and other executables are accessible globally.
     * Open Environment Variables: Press Win + R, type sysdm.cpl, and press Enter. This will open the System Properties window.
     * Go to the Advanced tab and click Environment Variables.
