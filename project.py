@@ -6,11 +6,9 @@ from whatif import WhatIfAnalysis
 
 class Project:
     def __init__(self):
-        # Initialize the preprocessing and what-if analysis modules
         self.preprocessing = Preprocessing()
         self.whatif_analysis = WhatIfAnalysis()
 
-        # Validate TPC-H Schema
         self.validate_tpch_schema()
 
     def validate_tpch_schema(self):
@@ -28,21 +26,16 @@ class Project:
         """
         Launch the GUI.
         """
-        # Create the PyQt application
         app = QApplication(sys.argv)
 
-        # Initialize the GUI with integrated functionality
         gui = QEPInterface()
 
-        # Inject backend dependencies into the GUI
-        gui.whatif = self.whatif_analysis  # Set What-If analysis module in GUI
-        gui.preprocessing = self.preprocessing  # Set Preprocessing module for the GUI
+        gui.whatif = self.whatif_analysis 
+        gui.preprocessing = self.preprocessing 
         gui.show()
 
-        # Start the application loop
         sys.exit(app.exec())
 
 if __name__ == "__main__":
-    # Instantiate and run the project
     project = Project()
     project.run()

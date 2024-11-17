@@ -1,20 +1,3 @@
-"""
-preprocessing.py
------------------
-Purpose:
-    - Handles input processing and preparatory tasks required by the application.
-
-Requirements:
-    1. Load and validate input data:
-        - Ensure the TPC-H dataset is correctly loaded and available for querying.
-        - Validate the correctness and format of user-supplied SQL queries.
-    2. Preprocessing tasks for:
-        - Visualizing the QEP (e.g., formatting data structures for tree representation).
-        - Modifying the QEP (e.g., mapping user edits to the query plan structure).
-    3. Provide support functions for other modules:
-        - Data extraction from PostgreSQL.
-        - Preparing data for visualization in the GUI.
-"""
 import psycopg2
 import os
 from typing import List, Dict, Optional
@@ -132,29 +115,4 @@ class Preprocessing:
 
         qep = self.preprocess_qep(query)
         return qep
-
-
-# Utility functions
-# def validate_and_load_tpch():
-#     """
-#     Ensure the TPC-H dataset is available and valid.
-#     """
-#     preprocessing = Preprocessing()
-#     if preprocessing.validate_tpch_schema():
-#         print("TPC-H schema validation successful.")
-#     else:
-#         print("TPC-H schema validation failed. Please check the dataset.")
-
-# def preprocess_query_for_gui(query: str):
-#     """
-#     Preprocess the query and prepare it for GUI visualization.
-#     """
-#     preprocessing = Preprocessing()
-#     if preprocessing.validate_query(query):
-#         print("Query validated successfully.")
-#         qep = preprocessing.preprocess_for_gui(query)
-#         print("Preprocessed QEP:", qep)
-#     else:
-#         print("Query validation failed.")
-
 

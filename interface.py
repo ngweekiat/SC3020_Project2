@@ -1,18 +1,3 @@
-"""
-interface.py
--------------
-Purpose:
-    - Manages the graphical user interface (GUI) for the application.
-    - Allows users to generate QEPs, modify them (What-If analysis), and retrieve AQPs.
-
-Requirements:
-    1. Allow users to:
-        - Input SQL queries via a Query panel.
-        - View the QEP (Query Execution Plan) in a visual tree format.
-        - Interactively edit the QEP to pose what-if questions (e.g., changing operators or join orders).
-        - View the modified SQL query and the corresponding AQP.
-        - Compare the costs of the AQP with the original QEP.
-"""
 
 import sys
 from PyQt6.QtWidgets import QApplication, QWidget, QMenu, QScrollArea, QGridLayout, QTreeWidgetItemIterator, QLineEdit, QVBoxLayout, QPushButton, QTextEdit, QLabel, QTreeWidget, QTreeWidgetItem
@@ -56,20 +41,20 @@ class Login(QDialog):
         # Labels and input fields for host, port, user, and password
         self.host_label = QLabel("Host:")
         self.host_input = QLineEdit(self)
-        self.host_input.setText(DB_HOST)  # Prepopulate host
+        self.host_input.setText(DB_HOST)  
 
         self.port_label = QLabel("Port No:")
         self.port_input = QLineEdit(self)
-        self.port_input.setText(DB_PORT)  # Prepopulate port
+        self.port_input.setText(DB_PORT)  
 
         self.user_label = QLabel("Username:")
         self.user_input = QLineEdit(self)
-        self.user_input.setText(DB_USER)  # Prepopulate username
+        self.user_input.setText(DB_USER)  
 
         self.pass_label = QLabel("Password:")
         self.password_input = QLineEdit(self)
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.password_input.setText(DB_PASSWORD)  # Prepopulate password
+        self.password_input.setText(DB_PASSWORD)  
 
         # Login button
         self.login_button = QPushButton("Login", self)

@@ -42,7 +42,7 @@ class WhatIfAnalysis:
                     # Assign unique node IDs recursively
                     def assign_node_ids(node, current_id=1):
                         node["Node ID"] = current_id
-                        child_id = current_id * 10  # Increment child IDs systematically
+                        child_id = current_id * 10 
                         for i, child in enumerate(node.get("Plans", [])):
                             assign_node_ids(child, child_id + i)
 
@@ -78,10 +78,8 @@ class WhatIfAnalysis:
     def logical_transformations(self, query: str, modifications: Dict) -> str:
         transformed_query = query
         if "Push Selections" in modifications:
-            # Example: Push selection conditions closer to base tables
             transformed_query = self.push_selections(query)
         if "Reorder Joins" in modifications:
-            # Example: Reorder joins based on estimated cardinalities
             transformed_query = self.reorder_joins(query, modifications["Join Order"])
         return transformed_query
 
@@ -90,7 +88,6 @@ class WhatIfAnalysis:
     
         settings = []
         for node_id, changes in modifications.items():
-            # Apply scan type changes if any
             if "Scan Type" in changes:
                 scan_type = changes["Scan Type"]
                 if scan_type == "Index Scan":
@@ -98,7 +95,6 @@ class WhatIfAnalysis:
                 elif scan_type == "Seq Scan":
                     settings.append("SET enable_seqscan = ON; SET enable_indexscan = OFF; SET enable_bitmapscan = OFF;")
 
-            # Apply operator type changes if any
             if "Node Type" in changes:
                 settings.append(self.get_operator_setting(changes["Node Type"]))
 
@@ -129,12 +125,11 @@ class WhatIfAnalysis:
             with self.connect_to_db() as conn:
                 with conn.cursor() as cursor:
                     if planner_settings:
-                        cursor.execute(planner_settings)  # Apply planner settings
+                        cursor.execute(planner_settings) 
 
                     cursor.execute(f"EXPLAIN (FORMAT JSON) {original_sql}")
                     aqp = cursor.fetchone()[0][0]
 
-                    # Assign unique IDs to AQP nodes recursively
                     def assign_node_ids(node, current_id=1):
                         node["Node ID"] = current_id
                         child_id = current_id * 10
@@ -152,19 +147,17 @@ class WhatIfAnalysis:
         Compare costs of the QEP and AQP.
         """
         import json
-        print("QEP COMPARE COST DEBUG: " + json.dumps(qep, indent=4))  # Pretty-print with indentation
-        print("AQP COMPARE COST DEBUG: " + json.dumps(aqp, indent=4))  # Pretty-print with indentation
+        print("QEP COMPARE COST DEBUG: " + json.dumps(qep, indent=4))  
+        print("AQP COMPARE COST DEBUG: " + json.dumps(aqp, indent=4))  
 
-        # set significant figures for decimal below
         original_cost = float(qep["Plan"].get("Total Cost", -1))
         modified_cost = float(aqp["Plan"].get("Total Cost", -1))
         cost_difference = round(Decimal(modified_cost - original_cost), 2 )
 
-        # Ensure original cost is valid
         if original_cost == -1 or modified_cost == -1:
             raise ValueError("Failed to retrieve cost from QEP or AQP.")
         
-        # Debugging prints
+        # Debugg
         print(f"Original QEP Cost: {original_cost}")
         print(f"Modified AQP Cost: {modified_cost}")
         print(f"Cost difference: {cost_difference}")
