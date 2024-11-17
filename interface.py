@@ -84,7 +84,8 @@ class Login(QDialog):
 
         # Perform login validation (you can customize this to connect to a DB or API)
         if host and port and user and password:
-            self.accept()  # Close login dialog and proceed with the application
+            # Close login dialog and proceed with the application
+            self.accept()  
         else:
             self.show_error("All fields are required.")
     
