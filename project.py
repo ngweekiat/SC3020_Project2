@@ -12,9 +12,7 @@ class Project:
         self.validate_tpch_schema()
 
     def validate_tpch_schema(self):
-        """
-        Ensure that the database is correctly set up.
-        """
+        # Ensure that the database is correctly set up.
         print("Validating TPC-H schema...")
         if self.preprocessing.validate_tpch_schema():
             print("TPC-H schema validation successful.")
@@ -23,9 +21,7 @@ class Project:
             sys.exit(1)
 
     def run(self):
-        """
-        Launch the GUI.
-        """
+        # Launch the GUI.
         app = QApplication(sys.argv)
 
         gui = QEPInterface()

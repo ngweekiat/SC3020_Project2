@@ -8,11 +8,6 @@ from decimal import Decimal, getcontext
 dotenv.load_dotenv()
 
 class WhatIfAnalysis:
-    """
-    Enhanced What-If Analysis Tool for Query Execution Plans (QEPs).
-    Handles modification of QEPs, SQL query generation, and cost comparisons.
-    """
-
     def __init__(self):
         self.conn_params = {
             "host": os.getenv("DB_HOST", "localhost"),
@@ -29,10 +24,8 @@ class WhatIfAnalysis:
             raise ConnectionError(f"Database connection error: {e}")
 
     def retrieve_qep(self, query: str) -> dict:
-        """
-        Retrieves the Query Execution Plan (QEP) for the given SQL query.
-        Assigns unique IDs to nodes for tracking purposes.
-        """
+        # Retrieves the Query Execution Plan (QEP) for the given SQL query.
+        # Assigns unique IDs to nodes for tracking purposes.
         try:
             with self.connect_to_db() as conn:
                 with conn.cursor() as cursor:
@@ -52,9 +45,7 @@ class WhatIfAnalysis:
             raise RuntimeError(f"Error retrieving QEP: {e}")
 
     def modify_qep(self, original_qep: Dict, modifications: Dict) -> Dict:
-        """
-        Dynamically apply modifications to the QEP based on user inputs.
-        """
+        # Dynamically apply modifications to the QEP based on user inputs.
         modified_qep = original_qep.copy()
 
         # Apply modifications to the QEP recursively
@@ -101,9 +92,7 @@ class WhatIfAnalysis:
         return " ".join(settings)
 
     def get_operator_setting(self, operator_type: str) -> str:
-        """
-        Map operator types to PostgreSQL settings.
-        """
+        # Map operator types to PostgreSQL settings.
         mapping = {
             "Merge Join": "SET enable_mergejoin = ON; SET enable_hashjoin = OFF; SET enable_nestloop = OFF;",
             "Hash Join": "SET enable_mergejoin = OFF; SET enable_hashjoin = ON; SET enable_nestloop = OFF;",
@@ -114,10 +103,8 @@ class WhatIfAnalysis:
 
 
     def retrieve_aqp(self, original_sql: str, modifications: Dict) -> Dict:
-        """
-        Retrieves the Alternative Query Plan (AQP) for the modified SQL query.
-        Applies planner settings to enforce desired behavior.
-        """
+        # Retrieves the Alternative Query Plan (AQP) for the modified SQL query.
+        # Applies planner settings to enforce desired behavior.
         planner_settings = self.apply_planner_settings(modifications)
         print(f"Applied planner settings for AQP: {planner_settings}")
 
@@ -143,9 +130,7 @@ class WhatIfAnalysis:
             raise RuntimeError(f"Error retrieving AQP: {e}")
 
     def compare_costs(self, qep: Dict, aqp: Dict) -> Dict:
-        """
-        Compare costs of the QEP and AQP.
-        """
+        # Compare costs of the QEP and AQP.
         import json
         print("QEP COMPARE COST DEBUG: " + json.dumps(qep, indent=4))  
         print("AQP COMPARE COST DEBUG: " + json.dumps(aqp, indent=4))  
